@@ -2,7 +2,7 @@
 Very easy for using Discord API and IPC library.
 
 ## Custom Rich Presence with library IPC:
-```
+```java
 DiscordIPC ipc = DiscordIPC.connectToPipe("1024665267340587049", new IPCEventListener() {
 
             // Ready event
