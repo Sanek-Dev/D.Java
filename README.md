@@ -1,7 +1,13 @@
 # D.Java
 Very easy for using Discord API and IPC library.
 
-## Custom Rich Presence with library IPC:
+## Setup:
+### Gradle:
+```gradle
+implementation files('path/to/D.Java-1.0-SNAPSHOT.jar')
+```
+
+## Custom Rich Presence using Discord IPC:
 ```java
 DiscordIPC ipc = DiscordIPC.connectToPipe("APP_ID", new IPCEventListener() {
 
@@ -24,6 +30,23 @@ DiscordIPC ipc = DiscordIPC.connectToPipe("APP_ID", new IPCEventListener() {
 
                 client.setPresence(activity); // Update our Rich Presence
                 System.out.println("Ready!");
+            }
+        });
+```
+
+## Authorizing in IPC:
+```java
+DiscordIPC ipc = DiscordIPC.connectToPipe("APP_ID", new IPCEventListener() {
+            @Override
+            public void onReady(DiscordIPC client) {
+                client.auth("CLIENT_SECRET");
+            }
+
+            @Override
+            public void onAuth(DiscordIPC client, User user, String accessToken) {
+                System.out.println("Welcome, " + user.toString() + "!");
+                
+                // We can update Rich Presence here
             }
         });
 ```
