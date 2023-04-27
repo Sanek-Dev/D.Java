@@ -1,5 +1,5 @@
 # D.Java
-Very easy for using Discord API and IPC library.
+Very easy library for using Discord API and Discord IPC
 
 ## Setup:
 ### Gradle:
