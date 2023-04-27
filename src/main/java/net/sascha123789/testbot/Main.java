@@ -1,5 +1,6 @@
 package net.sascha123789.testbot;
 
+import net.sascha123789.djava.api.User;
 import net.sascha123789.djava.ipc.DiscordIPC;
 import net.sascha123789.djava.ipc.IPCEventListener;
 import net.sascha123789.djava.ipc.entities.Activity;
@@ -9,7 +10,7 @@ import net.sascha123789.djava.ipc.entities.PresenceTimestamps;
 
 public class Main {
     public static void main(String[] args) {
-        /*DiscordClientBuilder builder = new DiscordClientBuilder("MTA5ODk4OTMyNDIzOTkwMDc3NA.GvNCLP.sB4NidxkNdV5Hp42nKWbphqKrvT6zyKvflWu68");
+        /*DiscordClientBuilder builder = new DiscordClientBuilder("TOKEN");
         //builder.setDebug(true);
         builder.setRecommendedShardCount();
         builder.setIntents(DiscordIntents.getAllIntents());

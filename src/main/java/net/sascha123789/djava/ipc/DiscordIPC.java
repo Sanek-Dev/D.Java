@@ -161,7 +161,6 @@ public class DiscordIPC {
         for(int i = 0; i < 10; i++) {
             try {
                 String loc = getPipeLocation(i);
-                System.out.println("Seacrhing for IPC: " + loc);
                 ipc = new DiscordIPC(clientId, loc);
                 JsonObject obj = new JsonObject();
                 obj.addProperty("v", 1);
