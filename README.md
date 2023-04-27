@@ -16,7 +16,7 @@ DiscordIPC ipc = DiscordIPC.connectToPipe("APP_ID", new IPCEventListener() {
                 // Create our activity
                 Activity activity = new Activity(true)
                         .setAssets(assets) // Set large image, small image, etc...
-                        .setDetails("Чисто Windows 11 22H2") // Set details for activity
+                        .setDetails("Clean Windows 11 22H2") // Set details for activity
                         .setState("Watching YouTube") // Activity state
                         .setTimestamps(new PresenceTimestamps()) // Set start time to current
                         .setButton1(new Button("Tojex Community", "https://discord.gg/KUe5jGNbJ9")) // Add the button to activity
