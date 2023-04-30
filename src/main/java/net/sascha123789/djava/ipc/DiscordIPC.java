@@ -20,9 +20,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -197,6 +194,6 @@ public class DiscordIPC {
 
     private static String getPipeLocation(int i)
     {
-            return "\\\\?\\pipe\\discord-ipc-"+i;
+        return "\\\\?\\pipe\\discord-ipc-"+i;
     }
 }

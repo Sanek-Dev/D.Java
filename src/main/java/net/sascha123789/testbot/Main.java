@@ -1,32 +1,37 @@
 package net.sascha123789.testbot;
 
-import net.sascha123789.djava.api.User;
-import net.sascha123789.djava.ipc.DiscordIPC;
-import net.sascha123789.djava.ipc.IPCEventListener;
-import net.sascha123789.djava.ipc.entities.Activity;
-import net.sascha123789.djava.ipc.entities.Button;
-import net.sascha123789.djava.ipc.entities.PresenceAssets;
-import net.sascha123789.djava.ipc.entities.PresenceTimestamps;
+import net.sascha123789.djava.gateway.DiscordClient;
+import net.sascha123789.djava.gateway.DiscordClientBuilder;
+import net.sascha123789.djava.gateway.intents.DiscordIntents;
+import net.sascha123789.djava.gateway.presence.ActivityType;
+import net.sascha123789.djava.gateway.presence.DiscordStatus;
 
 public class Main {
     public static void main(String[] args) {
-        /*DiscordClientBuilder builder = new DiscordClientBuilder("TOKEN");
-        //builder.setDebug(true);
+
+        DiscordClientBuilder builder = new DiscordClientBuilder("MTA5ODk4OTMyNDIzOTkwMDc3NA.GWYlqR.z68JYQb1ZMfAUJIwu-O7FIppC7vRDAVKZxI0yE");
         builder.setRecommendedShardCount();
         builder.setIntents(DiscordIntents.getAllIntents());
         builder.setStatus(DiscordStatus.DO_NOT_DISTURB);
-        builder.addActivity(new Activity("YouTube", ActivityType.WATCHING));
+        builder.addActivity(new net.sascha123789.djava.gateway.presence.Activity("YouTube", ActivityType.WATCHING));
+        builder.addEventAdapter(new Events());
 
         DiscordClient client = builder.build();
-        client.addEventAdapter(new Events());
-        client.run();*/
+        client.run();
 
-        DiscordIPC ipc = DiscordIPC.connectToPipe("1024665267340587049", new IPCEventListener() {
+        /*DiscordIPC ipc = DiscordIPC.connectToPipe("1024665267340587049", new IPCEventListener() {
             @Override
             public void onReady(DiscordIPC client) {
+                client.auth("Fbo7_cWaVU4WeMVSeF2O9M7JkC-efbPD");
+            }
+
+            @Override
+            public void onAuth(DiscordIPC client, User user, String accessToken) {
                 PresenceAssets assets = new PresenceAssets()
                         .setLargeImage("win-logo")
-                        .setLargeText("Build 22H2");
+                        .setLargeText("Build 22H2")
+                        .setSmallImage(user.getAvatarUrl())
+                        .setSmallText(user.toString());
 
                 Activity activity = new Activity(true)
                         .setAssets(assets)
@@ -37,8 +42,8 @@ public class Main {
                         .setButton2(new Button("Мой Ютуб", "https://www.youtube.com/channel/UCqrrQ5JzfhAIc5-Ar-7OutA"));
 
                 client.setPresence(activity);
-                System.out.println("Ready!");
+                System.out.println("Welcome, " + user.toString() + "!");
             }
-        });
+        });*/
     }
 }

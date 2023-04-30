@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.gateway.events;
 
+import net.sascha123789.djava.api.SelfUser;
 import net.sascha123789.djava.api.User;
 import net.sascha123789.djava.gateway.DiscordClient;
 
@@ -12,9 +13,9 @@ public class ReadyEvent extends BaseEvent {
     private String sessionId;
     private String resumeUrl;
     private String appId;
-    private User self;
+    private SelfUser self;
 
-    public ReadyEvent(DiscordClient client, int apiVersion, String sessionId, String resumeUrl, String appId, User self) {
+    public ReadyEvent(DiscordClient client, int apiVersion, String sessionId, String resumeUrl, String appId, SelfUser self) {
         super(client);
         this.apiVersion = apiVersion;
         this.sessionId = sessionId;
@@ -23,7 +24,7 @@ public class ReadyEvent extends BaseEvent {
         this.self = self;
     }
 
-    public User getSelfUser() {
+    public SelfUser getSelfUser() {
         return self;
     }
 

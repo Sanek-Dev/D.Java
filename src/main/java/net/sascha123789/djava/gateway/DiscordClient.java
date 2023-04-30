@@ -1,36 +1,41 @@
 package net.sascha123789.djava.gateway;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import net.sascha123789.djava.api.SelfUser;
 import net.sascha123789.djava.api.User;
-import net.sascha123789.djava.api.channel.BaseChannel;
-import net.sascha123789.djava.api.channel.TextChannel;
-import net.sascha123789.djava.api.channel.VoiceChannel;
+import net.sascha123789.djava.api.entities.channel.BaseChannel;
+import net.sascha123789.djava.api.entities.channel.Emoji;
+import net.sascha123789.djava.api.entities.channel.Message;
+import net.sascha123789.djava.api.entities.role.Role;
 import net.sascha123789.djava.api.enums.DiscordLanguage;
-import net.sascha123789.djava.api.interactions.BaseInteraction;
 import net.sascha123789.djava.api.interactions.slash.SlashCommandUseEvent;
-import net.sascha123789.djava.api.lowLevel.GatewayPacket;
-import net.sascha123789.djava.gateway.events.HeartbeatEvent;
-import net.sascha123789.djava.gateway.events.HelloEvent;
-import net.sascha123789.djava.gateway.events.ReadyEvent;
+import net.sascha123789.djava.gateway.events.*;
 import net.sascha123789.djava.gateway.intents.DiscordIntent;
 import net.sascha123789.djava.gateway.presence.Activity;
 import net.sascha123789.djava.gateway.presence.ActivityType;
 import net.sascha123789.djava.gateway.presence.DiscordStatus;
+import net.sascha123789.djava.utils.ChannelUtils;
 import net.sascha123789.djava.utils.Constants;
 import net.sascha123789.djava.utils.DiscordAPIException;
 import net.sascha123789.djava.utils.ErrHandler;
+import okhttp3.*;
 import org.apache.commons.lang3.SystemUtils;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
+import org.jetbrains.annotations.NotNull;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -40,9 +45,9 @@ public class DiscordClient {
     private String token;
     private String gatewayUrl;
     private int recommendedShards;
-    private HttpClient httpClient;
+    private OkHttpClient httpClient;
     private WebSocketClient socket;
-    private List<EventAdapter> adapters;
+    private final Set<EventAdapter> adapters;
     private int heartbeatInterval;
     private boolean debug;
     private List<DiscordIntent> intents;
@@ -57,7 +62,7 @@ public class DiscordClient {
     private String appId;
     private int lastSeq;
     private boolean running;
-    private User selfUser;
+    private SelfUser selfUser;
 
     public boolean isRunning() {
         return running;
@@ -108,7 +113,7 @@ public class DiscordClient {
         return recommendedShards;
     }
 
-    public List<EventAdapter> getEventAdapters() {
+    public Set<EventAdapter> getEventAdapters() {
         return adapters;
     }
 
@@ -123,10 +128,49 @@ public class DiscordClient {
     /**
      * @param token Bot token
      * @param intents Bot intents**/
-    public DiscordClient(String token, List<DiscordIntent> intents) {
+    public DiscordClient(String token, List<DiscordIntent> intents, Set<EventAdapter> adapters) {
         this.token = token;
-        this.httpClient = HttpClient.newBuilder().build();
-        this.adapters = new ArrayList<>();
+
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        @Override
+                        public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                            return new java.security.cert.X509Certificate[]{};
+                        }
+                    }
+            };
+
+            SSLContext sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+
+            this.httpClient = new OkHttpClient.Builder()
+                    .sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0])
+                    .hostnameVerifier((hostname, session) -> true)
+                    .addInterceptor(new Interceptor() {
+                        @NotNull
+                        @Override
+                        public Response intercept(@NotNull Chain chain) throws IOException {
+                            Request request = chain.request();
+                            Request newRequest = request.newBuilder()
+                                    .addHeader("User-Agent", Constants.USER_AGENT)
+                                    .addHeader("Authorization", "Bot " + token).build();
+                            return chain.proceed(newRequest);
+                        }
+                    }).build();
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        this.adapters = adapters;
         this.debug = false;
         this.activities = new ArrayList<>();
         this.status = DiscordStatus.ONLINE;
@@ -135,21 +179,20 @@ public class DiscordClient {
         this.useRecommendedShardCount = false;
         this.running = false;
 
-        HttpRequest getGatewayRequest = HttpRequest.newBuilder()
-                .GET()
-                .uri(URI.create(Constants.BASE_URL + "/gateway/bot"))
-                .header("Authorization", "Bot " + token)
-                .header("User-Agent", Constants.USER_AGENT)
+        Request getGateway = new Request.Builder()
+                .url(Constants.BASE_URL + "/gateway/bot")
+                .get()
                 .build();
 
         StringBuilder getGatewayRes = new StringBuilder();
 
-        httpClient.sendAsync(getGatewayRequest, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenAccept(content -> {
-                    ErrHandler.handle(content);
-                    getGatewayRes.append(content);
-                }).join();
+        try(Response resp = httpClient.newCall(getGateway).execute()) {
+            String str = resp.body().string();
+            ErrHandler.handle(str);
+            getGatewayRes.append(str);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
 
         JsonObject gatewayRes = Constants.GSON.fromJson(getGatewayRes.toString(), JsonObject.class);
 
@@ -162,10 +205,49 @@ public class DiscordClient {
      * @param token Bot token
      * @param debugLogging Debug logging enabled
      * @param intents Bot intents**/
-    public DiscordClient(String token, boolean debugLogging, List<DiscordIntent> intents) {
+    public DiscordClient(String token, boolean debugLogging, List<DiscordIntent> intents, Set<EventAdapter> adapters) {
         this.token = token;
-        this.httpClient = HttpClient.newBuilder().build();
-        this.adapters = new ArrayList<>();
+
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        @Override
+                        public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                            return new java.security.cert.X509Certificate[]{};
+                        }
+                    }
+            };
+
+            SSLContext sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+
+            this.httpClient = new OkHttpClient.Builder()
+                    .sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0])
+                    .hostnameVerifier((hostname, session) -> true)
+                    .addInterceptor(new Interceptor() {
+                        @NotNull
+                        @Override
+                        public Response intercept(@NotNull Chain chain) throws IOException {
+                            Request request = chain.request();
+                            Request newRequest = request.newBuilder()
+                                    .addHeader("User-Agent", Constants.USER_AGENT)
+                                    .addHeader("Authorization", "Bot " + token).build();
+                            return chain.proceed(newRequest);
+                        }
+                    }).build();
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        this.adapters = adapters;
         this.debug = debugLogging;
         this.activities = new ArrayList<>();
         this.status = DiscordStatus.ONLINE;
@@ -174,21 +256,20 @@ public class DiscordClient {
         this.useRecommendedShardCount = false;
         this.running = false;
 
-        HttpRequest getGatewayRequest = HttpRequest.newBuilder()
-                .GET()
-                .uri(URI.create(Constants.BASE_URL + "/gateway/bot"))
-                .header("Authorization", "Bot " + token)
-                .header("User-Agent", Constants.USER_AGENT)
+        Request getGateway = new Request.Builder()
+                .url(Constants.BASE_URL + "/gateway/bot")
+                .get()
                 .build();
 
         StringBuilder getGatewayRes = new StringBuilder();
 
-        httpClient.sendAsync(getGatewayRequest, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenAccept(content -> {
-                    ErrHandler.handle(content);
-                    getGatewayRes.append(content);
-                }).join();
+        try(Response resp = httpClient.newCall(getGateway).execute()) {
+            String str = resp.body().string();
+            ErrHandler.handle(str);
+            getGatewayRes.append(str);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
 
         JsonObject gatewayRes = Constants.GSON.fromJson(getGatewayRes.toString(), JsonObject.class);
 
@@ -203,10 +284,49 @@ public class DiscordClient {
      * @param intents Bot intents
      * @param status Bot status
      * @param activities Bot activities**/
-    public DiscordClient(String token, boolean debugLogging, List<DiscordIntent> intents, List<Activity> activities, DiscordStatus status, boolean sharding, int shardCount, boolean useRecommendedShardCount) {
+    public DiscordClient(String token, boolean debugLogging, List<DiscordIntent> intents, List<Activity> activities, DiscordStatus status, boolean sharding, int shardCount, boolean useRecommendedShardCount, Set<EventAdapter> adapters) {
         this.token = token;
-        this.httpClient = HttpClient.newBuilder().build();
-        this.adapters = new ArrayList<>();
+
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        @Override
+                        public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                            return new java.security.cert.X509Certificate[]{};
+                        }
+                    }
+            };
+
+            SSLContext sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+
+            this.httpClient = new OkHttpClient.Builder()
+                    .sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0])
+                    .hostnameVerifier((hostname, session) -> true)
+                    .addInterceptor(new Interceptor() {
+                        @NotNull
+                        @Override
+                        public Response intercept(@NotNull Chain chain) throws IOException {
+                            Request request = chain.request();
+                            Request newRequest = request.newBuilder()
+                                    .addHeader("User-Agent", Constants.USER_AGENT)
+                                    .addHeader("Authorization", "Bot " + token).build();
+                            return chain.proceed(newRequest);
+                        }
+                    }).build();
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        this.adapters = adapters;
         this.debug = debugLogging;
         this.activities = activities;
         this.status = status;
@@ -215,21 +335,20 @@ public class DiscordClient {
         this.useRecommendedShardCount = useRecommendedShardCount;
         this.running = false;
 
-        HttpRequest getGatewayRequest = HttpRequest.newBuilder()
-                .GET()
-                .uri(URI.create(Constants.BASE_URL + "/gateway/bot"))
-                .header("Authorization", "Bot " + token)
-                .header("User-Agent", Constants.USER_AGENT)
+        Request getGateway = new Request.Builder()
+                .url(Constants.BASE_URL + "/gateway/bot")
+                .get()
                 .build();
 
         StringBuilder getGatewayRes = new StringBuilder();
 
-        httpClient.sendAsync(getGatewayRequest, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenAccept(content -> {
-                    ErrHandler.handle(content);
-                    getGatewayRes.append(content);
-                }).join();
+        try(Response resp = httpClient.newCall(getGateway).execute()) {
+            String str = resp.body().string();
+            ErrHandler.handle(str);
+            getGatewayRes.append(str);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
 
         JsonObject gatewayRes = Constants.GSON.fromJson(getGatewayRes.toString(), JsonObject.class);
 
@@ -247,18 +366,15 @@ public class DiscordClient {
     /**
      * Add a new Event Adapter
      * @return Current instance**/
-    public DiscordClient addEventAdapter(EventAdapter adapter) {
+    public void addEventAdapter(EventAdapter adapter) {
         this.adapters.add(adapter);
-        return this;
     }
 
-    /**
-     * @return Current bot user from Ready event**/
-    public User getSelfUser() {
-        return selfUser;
+    public void removeEventAdapter(EventAdapter adapter) {
+        this.adapters.remove(adapter);
     }
 
-    public HttpClient getHttpClient() {
+    public OkHttpClient getHttpClient() {
         return httpClient;
     }
 
@@ -423,10 +539,6 @@ public class DiscordClient {
                             break;
                     }
 
-                    for(EventAdapter adapter: adapters) {
-                        adapter.onGatewayMessage(new GatewayPacket(eventOp, eventBody, eventName));
-                    }
-
                     switch (eventName) {
                         case "READY":
                             int v = eventBody.get("v").getAsInt();
@@ -438,7 +550,7 @@ public class DiscordClient {
                             self.resumeUrl = resumeUrl;
                             self.appId = appId;
                             self.running = true;
-                            self.selfUser = Constants.GSON.fromJson(eventBody.get("user").getAsJsonObject().toString(), User.class);
+                            self.selfUser = SelfUser.fromJson(self, eventBody.get("user").getAsJsonObject());
 
                             for(EventAdapter adapter: adapters) {
                                 adapter.onReady(new ReadyEvent(self, v, sessionId, resumeUrl, appId, selfUser));
@@ -494,29 +606,135 @@ public class DiscordClient {
                                         break;
                                     }
                                 }
-
                                 BaseChannel channel = null;
+
                                 if(eventBody.get("channel") != null) {
                                     if(!eventBody.get("channel").isJsonNull()) {
-                                        JsonObject o = eventBody.get("channel").getAsJsonObject();
-                                        int channelType = o.get("type").getAsInt();
-
-                                        switch (channelType) {
-                                            case 0:
-                                                channel = Constants.GSON.fromJson(o, TextChannel.class).setClient(self);
-                                                break;
-                                            case 2:
-                                                channel = Constants.GSON.fromJson(o, VoiceChannel.class).setClient(self);
-                                                break;
-                                        }
+                                        channel = ChannelUtils.switchTypes(self, eventBody.get("channel").getAsJsonObject());
                                     }
                                 }
 
                                 for(EventAdapter adapter: adapters) {
-                                    adapter.onSlashCommandUse(new SlashCommandUseEvent(self, id, token, app, lang, channelId, guildId, l, channel));
+                                    adapter.onSlashCommandUse(new SlashCommandUseEvent(channel, self, id, token, app, lang, channelId, guildId, l));
                                 }
                             }
 
+                            break;
+                        case "MESSAGE_CREATE":
+                            String guildId = "";
+                            if(eventBody.get("guild_id") != null) {
+                                if(!eventBody.get("guild_id").isJsonNull()) {
+                                    guildId = eventBody.get("guild_id").getAsString();
+                                }
+                            }
+
+                            for(EventAdapter adapter: adapters) {
+                                adapter.onMessageCreate(new MessageCreateEvent(self, Message.fromJson(self, eventBody), guildId));
+                            }
+
+                            break;
+                        case "MESSAGE_UPDATE":
+                            guildId = "";
+                            if(eventBody.get("guild_id") != null) {
+                                if(!eventBody.get("guild_id").isJsonNull()) {
+                                    guildId = eventBody.get("guild_id").getAsString();
+                                }
+                            }
+
+                            for(EventAdapter adapter: adapters) {
+                                adapter.onMessageUpdate(new MessageUpdateEvent(self, Message.fromJson(self, eventBody), guildId));
+                            }
+
+                            break;
+                        case "MESSAGE_DELETE":
+                            guildId = "";
+                            if(eventBody.get("guild_id") != null) {
+                                if(!eventBody.get("guild_id").isJsonNull()) {
+                                    guildId = eventBody.get("guild_id").getAsString();
+                                }
+                            }
+
+                            for(EventAdapter adapter: adapters) {
+                                adapter.onMessageDelete(new MessageDeleteEvent(self, eventBody.get("id").getAsString(), eventBody.get("channel_id").getAsString(), guildId));
+                            }
+
+                            break;
+                        case "MESSAGE_DELETE_BULK":
+                        {
+                            Set<String> ids = new HashSet<>();
+                            JsonArray arr = eventBody.get("ids").getAsJsonArray();
+
+                            for(JsonElement el: arr) {
+                                ids.add(el.getAsString());
+                            }
+
+                            guildId = "";
+                            if(eventBody.get("guild_id") != null) {
+                                if(!eventBody.get("guild_id").isJsonNull()) {
+                                    guildId = eventBody.get("guild_id").getAsString();
+                                }
+                            }
+
+                            for(EventAdapter adapter: adapters) {
+                                adapter.onMessageBulkDelete(new MessageDeleteBulkEvent(self, ids, eventBody.get("channel_id").getAsString(), guildId));
+                            }
+                        }
+                            break;
+                        case "MESSAGE_REACTION_ADD":
+                        {
+                            guildId = "";
+                            if(eventBody.get("guild_id") != null) {
+                                if(!eventBody.get("guild_id").isJsonNull()) {
+                                    guildId = eventBody.get("guild_id").getAsString();
+                                }
+                            }
+
+                            for(EventAdapter adapter: adapters) {
+                                adapter.onMessageReactionAdd(new MessageReactionAddEvent(self, eventBody.get("user_id").getAsString(), eventBody.get("channel_id").getAsString(), eventBody.get("message_id").getAsString(), guildId, Emoji.fromJson(self, eventBody.get("emoji").getAsJsonObject())));
+                            }
+                        }
+                            break;
+                        case "MESSAGE_REACTION_REMOVE":
+                        {
+                            guildId = "";
+                            if(eventBody.get("guild_id") != null) {
+                                if(!eventBody.get("guild_id").isJsonNull()) {
+                                    guildId = eventBody.get("guild_id").getAsString();
+                                }
+                            }
+
+                            for(EventAdapter adapter: adapters) {
+                                adapter.onMessageReactionRemove(new MessageReactionRemoveEvent(self, eventBody.get("user_id").getAsString(), eventBody.get("channel_id").getAsString(), eventBody.get("message_id").getAsString(), guildId, Emoji.fromJson(self, eventBody.get("emoji").getAsJsonObject())));
+                            }
+                        }
+                            break;
+                        case "MESSAGE_REACTION_REMOVE_ALL":
+                        {
+                            guildId = "";
+                            if(eventBody.get("guild_id") != null) {
+                                if(!eventBody.get("guild_id").isJsonNull()) {
+                                    guildId = eventBody.get("guild_id").getAsString();
+                                }
+                            }
+
+                            for(EventAdapter adapter: adapters) {
+                                adapter.onMessageReactionRemoveAll(new MessageReactionRemoveAllEvent(self, eventBody.get("channel_id").getAsString(), eventBody.get("message_id").getAsString(), guildId));
+                            }
+                        }
+                            break;
+                        case "MESSAGE_REACTION_REMOVE_EMOJI":
+                        {
+                            guildId = "";
+                            if(eventBody.get("guild_id") != null) {
+                                if(!eventBody.get("guild_id").isJsonNull()) {
+                                    guildId = eventBody.get("guild_id").getAsString();
+                                }
+                            }
+
+                            for(EventAdapter adapter: adapters) {
+                                adapter.onMessageReactionRemoveAllEmoji(new MessageReactionRemoveAllEmojiEvent(self, eventBody.get("channel_id").getAsString(), guildId, eventBody.get("message_id").getAsString(), Emoji.fromJson(self, eventBody.get("emoji").getAsJsonObject())));
+                            }
+                        }
                             break;
                     }
                 }
@@ -555,6 +773,65 @@ public class DiscordClient {
      * Close Discord Gateway connection and make bot offline**/
     public void close() {
         socket.close(1001);
+    }
+
+    public SelfUser getSelfUSer() {
+        return selfUser;
+    }
+
+    public Optional<BaseChannel> getChannelById(String id) {
+        HttpUrl.Builder url = HttpUrl.parse(Constants.BASE_URL + "/channels/" + id).newBuilder()
+                .addQueryParameter("with_member", "true");
+
+        Request request = new Request.Builder()
+                .url(url.build().toString())
+                .get()
+                .build();
+
+        try(Response resp = httpClient.newCall(request).execute()) {
+            String res = resp.body().string();
+            ErrHandler.handle(res);
+            System.out.println(res);
+
+            return Optional.of(ChannelUtils.switchTypes(this, Constants.GSON.fromJson(res, JsonObject.class)));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Role> getRoleById(String id) {
+        Request request = new Request.Builder()
+                .url(Constants.BASE_URL + "/users/" + id)
+                .get()
+                .build();
+
+        try(Response resp = httpClient.newCall(request).execute()) {
+            String res = resp.body().string();
+            ErrHandler.handle(res);
+
+            return null; //TODO: Rework
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Optional.empty();
+        }
+    }
+
+    public Optional<User> getUserById(String id) {
+        Request request = new Request.Builder()
+                .url(Constants.BASE_URL + "/users/" + id)
+                .get()
+                .build();
+
+        try(Response resp = httpClient.newCall(request).execute()) {
+            String res = resp.body().string();
+            ErrHandler.handle(res);
+
+            return Optional.of(Constants.GSON.fromJson(res, User.class));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Optional.empty();
+        }
     }
 
     private void reconnect() {

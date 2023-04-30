@@ -10,7 +10,9 @@ import net.sascha123789.djava.gateway.presence.Activity;
 import net.sascha123789.djava.gateway.presence.DiscordStatus;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class DiscordClientBuilder {
     private String token;
@@ -21,6 +23,7 @@ public class DiscordClientBuilder {
     private boolean sharding;
     private int shardCount;
     private boolean useRecommendedShardCount;
+    private Set<EventAdapter> adapters;
 
     public DiscordClientBuilder(String token) {
         this.token = token;
@@ -31,6 +34,12 @@ public class DiscordClientBuilder {
         this.sharding = false;
         this.shardCount = 0;
         this.useRecommendedShardCount = false;
+        this.adapters = new HashSet<>();
+    }
+
+    public DiscordClientBuilder addEventAdapter(EventAdapter adapter) {
+        this.adapters.add(adapter);
+        return this;
     }
 
     public DiscordClientBuilder setToken(String token) {
@@ -110,6 +119,6 @@ public class DiscordClientBuilder {
     /**
      * @return Built DiscordClient**/
     public DiscordClient build() {
-        return new DiscordClient(token, debug, intents, activities, status, sharding, shardCount, useRecommendedShardCount);
+        return new DiscordClient(token, debug, intents, activities, status, sharding, shardCount, useRecommendedShardCount, adapters);
     }
 }

@@ -45,6 +45,7 @@ public class SlashCommandSerializer implements JsonSerializer<SlashCommand> {
         object.addProperty("description", src.getDescription());
         object.addProperty("dm_permission", src.isDmPermission());
         object.addProperty("nsfw", src.isNsfw());
+        object.addProperty("type", 1);
         if(!src.isAvailableForEveryone() && !src.getRequiredPermissions().isEmpty()) {
             long bits = 0;
 
@@ -56,7 +57,6 @@ public class SlashCommandSerializer implements JsonSerializer<SlashCommand> {
         } else {
             object.addProperty("default_member_permissions", String.valueOf(DiscordPermission.VIEW_CHANNEL.getCode()));
         }
-        object.addProperty("type", 1);
         JsonArray arr = new JsonArray();
 
         if(!src.getSubcommandGroups().isEmpty()) {

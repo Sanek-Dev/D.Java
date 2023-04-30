@@ -5,13 +5,38 @@
 package net.sascha123789.djava.gateway;
 
 import net.sascha123789.djava.api.interactions.slash.SlashCommandUseEvent;
-import net.sascha123789.djava.api.lowLevel.GatewayPacket;
-import net.sascha123789.djava.gateway.events.HeartbeatEvent;
-import net.sascha123789.djava.gateway.events.HelloEvent;
-import net.sascha123789.djava.gateway.events.ReadyEvent;
+import net.sascha123789.djava.gateway.events.*;
 
 public interface EventAdapter {
-    default void onGatewayMessage(GatewayPacket packet) {
+    default void onMessageReactionRemoveAllEmoji(MessageReactionRemoveAllEmojiEvent event) {
+
+    }
+
+    default void onMessageReactionRemoveAll(MessageReactionRemoveAllEvent event) {
+
+    }
+
+    default void onMessageReactionRemove(MessageReactionRemoveEvent event) {
+
+    }
+
+    default void onMessageReactionAdd(MessageReactionAddEvent event) {
+
+    }
+
+    default void onMessageBulkDelete(MessageDeleteBulkEvent event) {
+
+    }
+
+    default void onMessageDelete(MessageDeleteEvent event) {
+
+    }
+
+    default void onMessageUpdate(MessageUpdateEvent event) {
+
+    }
+
+    default void onMessageCreate(MessageCreateEvent event) {
 
     }
 

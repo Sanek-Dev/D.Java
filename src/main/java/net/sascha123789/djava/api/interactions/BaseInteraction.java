@@ -5,7 +5,7 @@
 package net.sascha123789.djava.api.interactions;
 
 import net.sascha123789.djava.api.Identifiable;
-import net.sascha123789.djava.api.channel.BaseChannel;
+import net.sascha123789.djava.api.entities.channel.BaseChannel;
 import net.sascha123789.djava.api.enums.DiscordLanguage;
 import net.sascha123789.djava.gateway.DiscordClient;
 
@@ -14,16 +14,16 @@ public abstract class BaseInteraction implements Identifiable {
     protected String token;
     protected String appId;
     protected DiscordLanguage locale;
-    protected BaseChannel channel;
     protected DiscordClient client;
+    protected BaseChannel channel;
 
     public BaseInteraction(DiscordClient client, String id, String token, String appId, DiscordLanguage locale, BaseChannel channel) {
         this.id = id;
         this.token = token;
         this.appId = appId;
         this.locale = locale;
-        this.channel = channel;
         this.client = client;
+        this.channel = channel;
     }
 
     /**
