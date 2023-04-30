@@ -9,7 +9,7 @@ import net.sascha123789.djava.gateway.presence.DiscordStatus;
 public class Main {
     public static void main(String[] args) {
 
-        DiscordClientBuilder builder = new DiscordClientBuilder("MTA5ODk4OTMyNDIzOTkwMDc3NA.GWYlqR.z68JYQb1ZMfAUJIwu-O7FIppC7vRDAVKZxI0yE");
+        DiscordClientBuilder builder = new DiscordClientBuilder(args[0]);
         builder.setRecommendedShardCount();
         builder.setIntents(DiscordIntents.getAllIntents());
         builder.setStatus(DiscordStatus.DO_NOT_DISTURB);
