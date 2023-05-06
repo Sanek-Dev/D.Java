@@ -11,6 +11,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.SelfUser;
 import net.sascha123789.djava.api.User;
+import net.sascha123789.djava.api.entities.channel.Attachment;
 import net.sascha123789.djava.api.entities.channel.BaseChannel;
 import net.sascha123789.djava.api.entities.channel.Emoji;
 import net.sascha123789.djava.api.entities.channel.Message;
@@ -34,6 +35,7 @@ import net.sascha123789.djava.utils.DiscordAPIException;
 import net.sascha123789.djava.utils.ErrHandler;
 import okhttp3.*;
 import org.apache.commons.lang3.SystemUtils;
+import org.checkerframework.checker.units.qual.A;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.jetbrains.annotations.NotNull;
@@ -784,6 +786,46 @@ public class DiscordClient {
         }
     }
 
+    private static void switchResolved(DiscordClient self, JsonNode data, SlashCommandOptionType typ, String guildId, Map<String, EnteredOption> options, JsonNode el) {
+        JsonNode obj = data.get("resolved");
+
+        if(obj.get("users") != null) {
+            JsonNode users = obj.get("users");
+
+            if(!users.isEmpty()) {
+                EnteredOption o = new EnteredOption(typ, el.get("name").asText(), users.get(el.get("value").asText()), self, guildId);
+                options.put(el.get("name").asText(), o);
+            }
+        }
+
+        if(obj.get("roles") != null) {
+            JsonNode roles = obj.get("roles");
+
+            if(!roles.isEmpty()) {
+                EnteredOption o = new EnteredOption(typ, el.get("name").asText(), roles.get(el.get("value").asText()), self, guildId);
+                options.put(el.get("name").asText(), o);
+            }
+        }
+
+        if(obj.get("channels") != null) {
+            JsonNode channels = obj.get("channels");
+
+            if(!channels.isEmpty()) {
+                EnteredOption o = new EnteredOption(typ, el.get("name").asText(), channels.get(el.get("value").asText()), self, guildId);
+                options.put(el.get("name").asText(), o);
+            }
+        }
+
+        if(obj.get("attachments") != null) {
+            JsonNode attachments = obj.get("attachments");
+
+            if(!attachments.isEmpty()) {
+                EnteredOption o = new EnteredOption(typ, el.get("name").asText(), attachments.get(el.get("value").asText()), self, guildId);
+                options.put(el.get("name").asText(), o);
+            }
+        }
+    }
+
     private static void dispatchInteractionCreate(DiscordClient self, JsonNode eventBody) {
         int type = eventBody.get("type").asInt();
         String id = eventBody.get("id").asText();
@@ -871,13 +913,24 @@ public class DiscordClient {
                                                 if(!arr1.isEmpty()) {
                                                     for(JsonNode el2: arr1) {
                                                         int t2 = el2.get("type").asInt();
+                                                        SlashCommandOptionType typ = (t2 == 3 ? SlashCommandOptionType.STRING : (t2 == 4 ? SlashCommandOptionType.INTEGER : (t2 == 5 ? SlashCommandOptionType.BOOLEAN : (t2 == 6 ? SlashCommandOptionType.USER : (t2 == 7 ? SlashCommandOptionType.CHANNEL : (t2 == 8 ? SlashCommandOptionType.ROLE : (t2 == 9 ? SlashCommandOptionType.MENTIONABLE : (t2 == 10 ? SlashCommandOptionType.NUMBER : SlashCommandOptionType.ATTACHMENT))))))));
 
-                                                        options.put(el2.get("name").asText(), new EnteredOption((t2 == 3 ? SlashCommandOptionType.STRING : (t2 == 4 ? SlashCommandOptionType.INTEGER : (t2 == 5 ? SlashCommandOptionType.BOOLEAN : (t2 == 6 ? SlashCommandOptionType.USER : (t2 == 7 ? SlashCommandOptionType.CHANNEL : (t2 == 8 ? SlashCommandOptionType.ROLE : (t2 == 9 ? SlashCommandOptionType.MENTIONABLE : (t2 == 10 ? SlashCommandOptionType.NUMBER : SlashCommandOptionType.ATTACHMENT)))))))), el2.get("name").asText(), el2.get("value")));
+                                                        if(typ == SlashCommandOptionType.USER || typ == SlashCommandOptionType.ROLE || typ == SlashCommandOptionType.CHANNEL || typ == SlashCommandOptionType.ATTACHMENT) {
+                                                            switchResolved(self, data, typ, guildId, options, el2);
+                                                        } else {
+                                                            options.put(el2.get("name").asText(), new EnteredOption(typ, el2.get("name").asText(), el2.get("value"), self, guildId));
+                                                        }
                                                     }
                                                 }
                                             }
                                         } else {
-                                            options.put(el1.get("name").asText(), new EnteredOption((t1 == 3 ? SlashCommandOptionType.STRING : (t1 == 4 ? SlashCommandOptionType.INTEGER : (t1 == 5 ? SlashCommandOptionType.BOOLEAN : (t1 == 6 ? SlashCommandOptionType.USER : (t1 == 7 ? SlashCommandOptionType.CHANNEL : (t1 == 8 ? SlashCommandOptionType.ROLE : (t1 == 9 ? SlashCommandOptionType.MENTIONABLE : (t1 == 10 ? SlashCommandOptionType.NUMBER : SlashCommandOptionType.ATTACHMENT)))))))), el1.get("name").asText(), el1.get("value")));
+                                            SlashCommandOptionType typ = (t1 == 3 ? SlashCommandOptionType.STRING : (t1 == 4 ? SlashCommandOptionType.INTEGER : (t1 == 5 ? SlashCommandOptionType.BOOLEAN : (t1 == 6 ? SlashCommandOptionType.USER : (t1 == 7 ? SlashCommandOptionType.CHANNEL : (t1 == 8 ? SlashCommandOptionType.ROLE : (t1 == 9 ? SlashCommandOptionType.MENTIONABLE : (t1 == 10 ? SlashCommandOptionType.NUMBER : SlashCommandOptionType.ATTACHMENT))))))));
+
+                                            if(typ == SlashCommandOptionType.USER || typ == SlashCommandOptionType.ROLE || typ == SlashCommandOptionType.CHANNEL || typ == SlashCommandOptionType.ATTACHMENT) {
+                                                switchResolved(self, data, typ, guildId, options, el1);
+                                            } else {
+                                                options.put(el1.get("name").asText(), new EnteredOption(typ, el1.get("name").asText(), el1.get("value"), self, guildId));
+                                            }
                                         }
                                     }
                                 }
@@ -885,7 +938,12 @@ public class DiscordClient {
                         } else if(t == 1) {
                             subName = el.get("name").asText();
                         } else {
-                            options.put(el.get("name").asText(), new EnteredOption((t == 3 ? SlashCommandOptionType.STRING : (t == 4 ? SlashCommandOptionType.INTEGER : (t == 5 ? SlashCommandOptionType.BOOLEAN : (t == 6 ? SlashCommandOptionType.USER : (t == 7 ? SlashCommandOptionType.CHANNEL : (t == 8 ? SlashCommandOptionType.ROLE : (t == 9 ? SlashCommandOptionType.MENTIONABLE : (t == 10 ? SlashCommandOptionType.NUMBER : SlashCommandOptionType.ATTACHMENT)))))))), el.get("name").asText(), el.get("value")));
+                            SlashCommandOptionType typ = (t == 3 ? SlashCommandOptionType.STRING : (t == 4 ? SlashCommandOptionType.INTEGER : (t == 5 ? SlashCommandOptionType.BOOLEAN : (t == 6 ? SlashCommandOptionType.USER : (t == 7 ? SlashCommandOptionType.CHANNEL : (t == 8 ? SlashCommandOptionType.ROLE : (t == 9 ? SlashCommandOptionType.MENTIONABLE : (t == 10 ? SlashCommandOptionType.NUMBER : SlashCommandOptionType.ATTACHMENT))))))));
+                            if(typ == SlashCommandOptionType.USER || typ == SlashCommandOptionType.ROLE || typ == SlashCommandOptionType.CHANNEL || typ == SlashCommandOptionType.ATTACHMENT) {
+                                switchResolved(self, data, typ, guildId, options, el);
+                            } else {
+                                options.put(el.get("name").asText(), new EnteredOption(typ, el.get("name").asText(), el.get("value"), self, guildId));
+                            }
                         }
                     }
                 }

@@ -11,10 +11,12 @@ import net.sascha123789.djava.api.Identifiable;
 public class Attachment implements Identifiable {
     private String id;
     private String filename;
+    private String url;
 
-    private Attachment(String id, String filename) {
+    private Attachment(String id, String filename, String url) {
         this.id = id;
         this.filename = filename;
+        this.url = url;
     }
 
     @Override
@@ -28,7 +30,7 @@ public class Attachment implements Identifiable {
     }
 
     public static Attachment create(String id) {
-        return new Attachment(id, "");
+        return new Attachment(id, "", "");
     }
 
     public JsonObject toJson() {
@@ -38,11 +40,16 @@ public class Attachment implements Identifiable {
         return o;
     }
 
+    public String getUrl() {
+        return url;
+    }
+
     public static Attachment fromJson(JsonNode json) {
         String id = json.get("id").asText();
         String filename = json.get("filename").asText();
+        String url = json.get("url").asText();
 
-        return new Attachment(id, filename);
+        return new Attachment(id, filename, url);
     }
 
     public String getFilename() {
