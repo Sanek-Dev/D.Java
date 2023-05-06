@@ -463,13 +463,7 @@ public class Message implements Identifiable, DeferInstance<Message> {
     public static Message fromJson(DiscordClient client, JsonNode json) {
         String id = json.get("id").asText();
         String channelId = json.get("channel_id").asText();
-        User author = null;
-
-        try {
-            author = null; //TODO: User deserializer
-        } catch(Exception ignored) {
-
-        }
+        User author = User.fromJson(json.get("author"));
 
         String content = "";
 
@@ -563,7 +557,10 @@ public class Message implements Identifiable, DeferInstance<Message> {
             }
         }
 
-        boolean pinned = json.get("pinned").asBoolean();
+        boolean pinned = false;
+        if(json.get("pinned") != null) {
+            pinned = json.get("pinned").asBoolean();
+        }
 
         String webhookId = "";
         if(json.get("webhook_id") != null) {

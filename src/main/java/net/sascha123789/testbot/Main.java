@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Sascha123789 2023.
+ */
+
 package net.sascha123789.testbot;
 
 import net.sascha123789.djava.gateway.DiscordClient;
@@ -13,7 +17,8 @@ public class Main {
                 .setIntents(DiscordIntents.getAllIntents())
                 .setStatus(DiscordStatus.DO_NOT_DISTURB)
                 .addActivity(new Activity("YouTube", ActivityType.WATCHING))
-                .addEventAdapter(new Events());
+                .addEventAdapter(new Events())
+                .setDebug(true);
 
         DiscordClient client = builder.build();
         client.run();

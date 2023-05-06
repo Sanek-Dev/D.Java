@@ -60,6 +60,16 @@ public class AllowedMentions {
         return o;
     }
 
+    public static AllowedMentions create(Type... parseTypes) {
+        List<String> parse = new ArrayList<>();
+
+        for(Type type: parseTypes) {
+            parse.add((type == Type.ROLES ? "roles" : (type == Type.USERS ? "users" : "everyone")));
+        }
+
+        return new AllowedMentions(parse, new ArrayList<>(), new ArrayList<>(), false);
+    }
+
     public static AllowedMentions create(List<Type> parseTypes) {
         List<String> parse = new ArrayList<>();
 

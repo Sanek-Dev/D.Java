@@ -5,10 +5,8 @@
 package net.sascha123789.testbot;
 
 import net.sascha123789.djava.api.SelfUser;
-import net.sascha123789.djava.api.entities.channel.*;
+import net.sascha123789.djava.api.entities.channel.Embed;
 import net.sascha123789.djava.api.entities.guild.Guild;
-import net.sascha123789.djava.api.entities.reply.AllowedMentions;
-import net.sascha123789.djava.api.entities.reply.MessageData;
 import net.sascha123789.djava.api.enums.DiscordPermission;
 import net.sascha123789.djava.api.enums.SlashCommandOptionType;
 import net.sascha123789.djava.api.interactions.slash.*;
@@ -16,30 +14,35 @@ import net.sascha123789.djava.api.managers.SlashCommandManager;
 import net.sascha123789.djava.gateway.EventAdapter;
 import net.sascha123789.djava.gateway.events.HeartbeatEvent;
 import net.sascha123789.djava.gateway.events.HelloEvent;
-import net.sascha123789.djava.gateway.events.MessageCreateEvent;
 import net.sascha123789.djava.gateway.events.ReadyEvent;
 
 import java.awt.*;
-import java.util.List;
 
 public class Events implements EventAdapter {
-
     @Override
-    public void onMessageCreate(MessageCreateEvent event) {
-        Message msg = event.getMessage();
-        MessageableChannel channel = event.getChannel().asMessageable();
+    public void onSlashCommandUse(SlashCommandUseEvent event) {
         Guild guild = event.getGuild();
+        String name = event.getName();
 
-        if(msg.getContent().equals("!hello")) {
+        if(name.equals("say")) {
+            String text = event.getOptions().get("текст").getValueAsString();
+
             Embed emb = new Embed.Builder()
-                    .setColor(Color.decode("#3887d6"))
-                    .setThumbnailUrl(event.getClient().getSelfUSer().getAvatarUrl())
-                    .setDescription("Всего серверов у бота: *" + event.getClient().getGuilds().size() + "*")
-                    .setTitle("Привет!")
-                    .setTimestampNow()
+                    .setTitle("Успешно!")
+                    .setColor(new Color(46, 154, 217))
+                    .setDescription("Название сервера: " + guild.getName())
+                    .setFooter("/" + event.getName() + " " + event.getSubcommandGroupName() + " " + event.getSubcommandName())
+                    .setThumbnailUrl(guild.getIconUrl())
                     .build();
 
-            msg.reply(emb);
+            event.reply(true, emb);
+            event.replyFollowup(text);
+        } else if(name.equals("calc")) {
+            int num0 = event.getOptions().get("число1").getValueAsInt();
+            int num1 = event.getOptions().get("число2").getValueAsInt();
+            int res = num0 + num1;
+
+            event.reply(num0 + " + " + num1 + " = " + res);
         }
     }
 
@@ -68,8 +71,11 @@ public class Events implements EventAdapter {
         SlashCommandOption msgOption = new SlashCommandOption.Builder(SlashCommandOptionType.STRING, "текст", "Текст сообщения").setRequired(true).build();
         SlashCommand sayCmd = manager.createBuilder("say", "Отправить сообщение от лица бота").setAvailableInDm(false).addOptions(msgOption).addRequiredPermission(DiscordPermission.MANAGE_MESSAGES).build();
 
-        manager.registerGlobalSlashCommand(permissions);
-        manager.registerGlobalSlashCommand(sayCmd);
+        SlashCommandOption num0 = new SlashCommandOption.Builder(SlashCommandOptionType.INTEGER, "число1", "Первое число").setRequired(true).build();
+        SlashCommandOption num1 = new SlashCommandOption.Builder(SlashCommandOptionType.INTEGER, "число2", "Второе число").setRequired(true).build();
+        SlashCommand calc = manager.createBuilder("calc", "Посчитать значение чисел").addOptions(num0, num1).build();
+
+        manager.bulkOverwriteGlobalSlashCommands(permissions, sayCmd, calc);
 
         System.out.println(self.toString() + " is ready!");
     }

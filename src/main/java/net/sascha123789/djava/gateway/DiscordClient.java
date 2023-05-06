@@ -18,6 +18,8 @@ import net.sascha123789.djava.api.entities.guild.Guild;
 import net.sascha123789.djava.api.entities.guild.Member;
 import net.sascha123789.djava.api.entities.role.Role;
 import net.sascha123789.djava.api.enums.DiscordLanguage;
+import net.sascha123789.djava.api.enums.SlashCommandOptionType;
+import net.sascha123789.djava.api.interactions.slash.EnteredOption;
 import net.sascha123789.djava.api.interactions.slash.SlashCommandUseEvent;
 import net.sascha123789.djava.api.managers.CacheManager;
 import net.sascha123789.djava.gateway.events.*;
@@ -418,7 +420,6 @@ public class DiscordClient {
         this.cacheManager = new CacheManager(this);
         this.guilds = new ArrayList<>();
     }
-
 
     /**
      * @param token Bot token
@@ -838,9 +839,60 @@ public class DiscordClient {
                     channel = ChannelUtils.switchTypes(self, eventBody.get("channel"));
                 }
             }
+            JsonNode data = eventBody.get("data");
+            String name = data.get("name").asText();
+            String groupName = "";
+            String subName = "";
+            Map<String, EnteredOption> options = new HashMap<>();
+
+            if(data.get("options") != null) {
+                JsonNode arr = data.get("options");
+
+                if(!arr.isEmpty()) {
+                    for(JsonNode el: arr) {
+                        int t = el.get("type").asInt();
+
+                        if(t == 2) {
+                            groupName = el.get("name").asText();
+
+                            if(el.get("options") != null) {
+                                JsonNode arrSub = el.get("options");
+
+                                if(!arrSub.isEmpty()) {
+                                    for(JsonNode el1: arrSub) {
+                                        int t1 = el1.get("type").asInt();
+
+                                        if(t1 == 1) {
+                                            subName = el1.get("name").asText();
+
+                                            if(el1.get("options") != null) {
+                                                JsonNode arr1 = el1.get("options");
+
+                                                if(!arr1.isEmpty()) {
+                                                    for(JsonNode el2: arr1) {
+                                                        int t2 = el2.get("type").asInt();
+
+                                                        options.put(el2.get("name").asText(), new EnteredOption((t2 == 3 ? SlashCommandOptionType.STRING : (t2 == 4 ? SlashCommandOptionType.INTEGER : (t2 == 5 ? SlashCommandOptionType.BOOLEAN : (t2 == 6 ? SlashCommandOptionType.USER : (t2 == 7 ? SlashCommandOptionType.CHANNEL : (t2 == 8 ? SlashCommandOptionType.ROLE : (t2 == 9 ? SlashCommandOptionType.MENTIONABLE : (t2 == 10 ? SlashCommandOptionType.NUMBER : SlashCommandOptionType.ATTACHMENT)))))))), el2.get("name").asText(), el2.get("value")));
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            options.put(el1.get("name").asText(), new EnteredOption((t1 == 3 ? SlashCommandOptionType.STRING : (t1 == 4 ? SlashCommandOptionType.INTEGER : (t1 == 5 ? SlashCommandOptionType.BOOLEAN : (t1 == 6 ? SlashCommandOptionType.USER : (t1 == 7 ? SlashCommandOptionType.CHANNEL : (t1 == 8 ? SlashCommandOptionType.ROLE : (t1 == 9 ? SlashCommandOptionType.MENTIONABLE : (t1 == 10 ? SlashCommandOptionType.NUMBER : SlashCommandOptionType.ATTACHMENT)))))))), el1.get("name").asText(), el1.get("value")));
+                                        }
+                                    }
+                                }
+                            }
+                        } else if(t == 1) {
+                            subName = el.get("name").asText();
+                        } else {
+                            options.put(el.get("name").asText(), new EnteredOption((t == 3 ? SlashCommandOptionType.STRING : (t == 4 ? SlashCommandOptionType.INTEGER : (t == 5 ? SlashCommandOptionType.BOOLEAN : (t == 6 ? SlashCommandOptionType.USER : (t == 7 ? SlashCommandOptionType.CHANNEL : (t == 8 ? SlashCommandOptionType.ROLE : (t == 9 ? SlashCommandOptionType.MENTIONABLE : (t == 10 ? SlashCommandOptionType.NUMBER : SlashCommandOptionType.ATTACHMENT)))))))), el.get("name").asText(), el.get("value")));
+                        }
+                    }
+                }
+            }
 
             for(EventAdapter adapter: self.adapters) {
-                adapter.onSlashCommandUse(new SlashCommandUseEvent(channel, self, id, token, app, lang, channelId, guildId, l, Member.fromJson(self, eventBody.get("member"), guildId)));
+                adapter.onSlashCommandUse(new SlashCommandUseEvent(options, subName, groupName, name, channel, self, id, token, app, lang, channelId, guildId, l, Member.fromJson(self, eventBody.get("member"), guildId)));
             }
         }
     }
@@ -970,6 +1022,8 @@ public class DiscordClient {
 
                 client.getCacheManager().getGuildCache().put(guild.getId(), guild);
                 client.guilds.add(guild);
+
+
 
                 if(client.isDebug()) {
                     System.out.println("[D.Java]: Loaded guild " + guild.getId() + " cache!");
@@ -1185,6 +1239,7 @@ public class DiscordClient {
     }
 
     private void reconnect() {
+        socket.reconnect();
         JsonObject o = new JsonObject();
         o.addProperty("op", 6);
         JsonObject d = new JsonObject();

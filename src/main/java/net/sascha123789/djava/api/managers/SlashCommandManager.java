@@ -34,6 +34,8 @@ public class SlashCommandManager implements DiscordManager {
         return new SlashCommand.Builder(client, name, description);
     }
 
+
+
     private static void putUuid(String id, String uuid) {
         try {
             Class<?> cls = DiscordClient.class;

@@ -487,8 +487,18 @@ public class Guild implements Identifiable {
     }
 
     public static Guild fromJson(DiscordClient client, JsonNode json) {
-        String id = json.get("id").asText();
-        String name = json.get("name").asText();
+        String id = "";
+
+        if(json.get("id") != null) {
+            id = json.get("id").asText();
+        }
+
+        String name = "";
+
+        if(json.get("name") != null) {
+            name = json.get("name").asText();
+        }
+
         String icon = "";
 
         if(exists(json, "icon")) {
@@ -505,7 +515,10 @@ public class Guild implements Identifiable {
             discoverySplash = json.get("discovery_splash").asText();
         }
 
-        String ownerId = json.get("owner_id").asText();
+        String ownerId = "";
+        if(exists(json, "owner_id")) {
+            ownerId = json.get("owner_id").asText();
+        }
 
         VoiceChannel afkChannel = null;
         int afkTimeout = 0;
