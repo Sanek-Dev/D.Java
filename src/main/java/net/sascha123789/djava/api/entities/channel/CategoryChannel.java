@@ -4,6 +4,9 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -72,26 +75,25 @@ public class CategoryChannel extends BaseChannel {
             return this;
         }
 
-        public void update() {
-            JsonObject obj = new JsonObject();
+        public final void update() {
+            ObjectNode obj = Constants.MAPPER.createObjectNode();
 
             if (!name.isEmpty()) {
-                obj.addProperty("name", name);
+                obj.put("name", name);
             }
 
             if (position != -1) {
-                obj.addProperty("position", Math.abs(position));
+                obj.put("position", Math.abs(position));
             }
 
             if (!overwrites.isEmpty()) {
-                JsonArray arr = new JsonArray();
+                ArrayNode arr = Constants.MAPPER.createArrayNode();
 
                 for (PermissionOverwrite overwrite : overwrites) {
-                    JsonObject o = overwrite.toJson();
-                    arr.add(o);
+                    arr.add(overwrite.toJson());
                 }
 
-                obj.add("permission_overwrites", arr);
+                obj.set("permission_overwrites", arr);
             }
 
             if (!flags.isEmpty()) {
@@ -99,83 +101,85 @@ public class CategoryChannel extends BaseChannel {
                 for (ChannelFlag el : this.flags) {
                     flags += el.getCode();
                 }
-                obj.addProperty("flags", flags);
+                obj.put("flags", flags);
             }
 
-            Request request = new Request.Builder()
-                    .url(Constants.BASE_URL + "/channels/" + channel.getId())
-                    .patch(RequestBody.create(obj.toString(), MediaType.parse("application/json"))).build();
+            try {
+                Request request = new Request.Builder()
+                        .url(Constants.BASE_URL + "/channels/" + channel.getId())
+                        .patch(RequestBody.create(Constants.MAPPER.writeValueAsString(obj), MediaType.parse("application/json"))).build();
 
-            try(Response resp = client.getHttpClient().newCall(request).execute()) {
-                String str = resp.body().string();
+                try(Response resp = client.getHttpClient().newCall(request).execute()) {
+                    String str = resp.body().string();
 
-                ErrHandler.handle(str);
-            } catch (Exception e) {
+                    ErrHandler.handle(str);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } catch(Exception e) {
                 e.printStackTrace();
             }
         }
     }
 
-    public static CategoryChannel fromJson(DiscordClient client, JsonObject json) {
+    public static CategoryChannel fromJson(DiscordClient client, JsonNode json) {
         /* Base */
-        String id = json.get("id").getAsString();
-        int t = json.get("type").getAsInt();
+        String id = json.get("id").asText();
+        int t = json.get("type").asInt();
         ChannelType type = (t == 0 ? ChannelType.TEXT : (t == 2 ? ChannelType.VOICE : (t == 4 ? ChannelType.CATEGORY : (t == 5 ? ChannelType.ANNOUNCEMENT : (t == 10 ? ChannelType.ANNOUNCEMENT : (t == 11 ? ChannelType.PUBLIC_THREAD : (t == 12 ? ChannelType.PRIVATE_THREAD : (t == 13 ? ChannelType.STAGE : (t == 14 ? ChannelType.DIRECTORY : ChannelType.FORUM)))))))));
         String guildId = "";
 
         if(json.get("guild_id") != null) {
-            if(!json.get("guild_id").isJsonNull()) {
-                guildId = json.get("guild_id").getAsString();
+            if(!json.get("guild_id").isNull()) {
+                guildId = json.get("guild_id").asText();
             }
         }
 
         int position = 0;
         if(json.get("position") != null) {
-            if(!json.get("position").isJsonNull()) {
-                position = json.get("position").getAsInt();
+            if(!json.get("position").isNull()) {
+                position = json.get("position").asInt();
             }
         }
 
         Set<PermissionOverwrite> overwrites = new HashSet<>();
 
         if(json.get("permission_overwrites") != null) {
-            if(!json.get("permission_overwrites").isJsonNull()) {
-                JsonArray arr = json.get("permission_overwrites").getAsJsonArray();
+            if(!json.get("permission_overwrites").isNull()) {
+                JsonNode arr = json.get("permission_overwrites");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-
-                    overwrites.add(PermissionOverwrite.fromJson(o));
+                for(JsonNode el: arr) {
+                    overwrites.add(PermissionOverwrite.fromJson(el));
                 }
             }
         }
 
         String name = "";
         if(json.get("name") != null) {
-            if(!json.get("name").isJsonNull()) {
-                name = json.get("name").getAsString();
+            if(!json.get("name").isNull()) {
+                name = json.get("name").asText();
             }
         }
 
         boolean nsfw = false;
         if(json.get("nsfw") != null) {
-            if(!json.get("nsfw").isJsonNull()) {
-                nsfw = json.get("nsfw").getAsBoolean();
+            if(!json.get("nsfw").isNull()) {
+                nsfw = json.get("nsfw").asBoolean();
             }
         }
 
         String parentId = "";
         if(json.get("parent_id") != null) {
-            if(!json.get("parent_id").isJsonNull()) {
-                parentId = json.get("parent_id").getAsString();
+            if(!json.get("parent_id").isNull()) {
+                parentId = json.get("parent_id").asText();
             }
         }
 
         Set<ChannelFlag> flags = new HashSet<>();
         long flagsRaw = 0;
         if(json.get("flags") != null) {
-            if(!json.get("flags").isJsonNull()) {
-                flagsRaw = json.get("flags").getAsLong();
+            if(!json.get("flags").isNull()) {
+                flagsRaw = json.get("flags").asLong();
             }
         }
 
@@ -185,6 +189,10 @@ public class CategoryChannel extends BaseChannel {
             }
         }
         /////////////////////////////////////////////////////
+
+        if(client.isOptimized()) {
+            System.gc();
+        }
 
         return new CategoryChannel(client, id, type, guildId, position, overwrites, name, nsfw, parentId, flags);
     }

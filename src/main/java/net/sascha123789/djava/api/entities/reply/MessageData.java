@@ -4,10 +4,17 @@
 
 package net.sascha123789.djava.api.entities.reply;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.entities.channel.Embed;
 import net.sascha123789.djava.api.entities.channel.MessageReference;
 import net.sascha123789.djava.api.entities.channel.Sticker;
+import net.sascha123789.djava.utils.Constants;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 
 import java.io.File;
 import java.util.*;
@@ -20,6 +27,8 @@ public class MessageData {
     private MessageReference reference;
     private List<String> stickers;
     private Set<File> attachments;
+    private boolean ephemeral;
+    private int type;
 
     public MessageData() {
         this.content = "";
@@ -29,6 +38,17 @@ public class MessageData {
         this.reference = null;
         this.stickers = new ArrayList<>();
         this.attachments = new HashSet<>();
+        this.ephemeral = false;
+        this.type = -1;
+    }
+
+    public void setType(int type) {
+        this.type = type;
+    }
+
+    public MessageData setEphemeral(boolean ephemeral) {
+        this.ephemeral = ephemeral;
+        return this;
     }
 
     public MessageData setContent(String content) {
@@ -52,8 +72,8 @@ public class MessageData {
     }
 
     public MessageData setReplyMessage(String id) {
-        JsonObject o = new JsonObject();
-        o.addProperty("message_id", id);
+        ObjectNode o = Constants.MAPPER.createObjectNode();
+        o.put("message_id", id);
         this.reference = MessageReference.fromJson(o);
         return this;
     }

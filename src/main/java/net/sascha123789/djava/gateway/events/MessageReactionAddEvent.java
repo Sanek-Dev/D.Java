@@ -8,6 +8,7 @@ import net.sascha123789.djava.api.User;
 import net.sascha123789.djava.api.entities.channel.Emoji;
 import net.sascha123789.djava.api.entities.channel.Message;
 import net.sascha123789.djava.api.entities.channel.MessageableChannel;
+import net.sascha123789.djava.api.entities.guild.Guild;
 import net.sascha123789.djava.gateway.DiscordClient;
 
 public class MessageReactionAddEvent extends BaseEvent {
@@ -17,10 +18,10 @@ public class MessageReactionAddEvent extends BaseEvent {
     private MessageableChannel channel;
     private String msgId;
     private Message message;
-    private String guildId;
+    private Guild guild;
     private Emoji emoji;
 
-    public MessageReactionAddEvent(DiscordClient client, String userId, String channelId, String msgId, String guildId, Emoji emoji) {
+    public MessageReactionAddEvent(DiscordClient client, String userId, String channelId, String msgId, Guild guild, Emoji emoji) {
         super(client);
         this.userId = userId;
         this.user = client.getUserById(userId).get();
@@ -28,7 +29,7 @@ public class MessageReactionAddEvent extends BaseEvent {
         this.channel = client.getChannelById(channelId).get().asMessageable();
         this.msgId = msgId;
         this.message = channel.getMessageById(msgId).get();
-        this.guildId = guildId;
+        this.guild = guild;
         this.emoji = emoji;
     }
 
@@ -56,8 +57,8 @@ public class MessageReactionAddEvent extends BaseEvent {
         return message;
     }
 
-    public String getGuildId() {
-        return guildId;
+    public Guild getGuild() {
+        return guild;
     }
 
     public Emoji getEmoji() {

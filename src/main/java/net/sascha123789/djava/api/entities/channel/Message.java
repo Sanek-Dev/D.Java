@@ -4,9 +4,15 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.stream.JsonReader;
 import net.sascha123789.djava.api.Identifiable;
 import net.sascha123789.djava.api.User;
 import net.sascha123789.djava.api.entities.reply.MessageData;
@@ -15,8 +21,10 @@ import net.sascha123789.djava.utils.Constants;
 import net.sascha123789.djava.utils.DeferInstance;
 import net.sascha123789.djava.utils.ErrHandler;
 import okhttp3.*;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
+import java.io.StringReader;
 import java.sql.Timestamp;
 import java.util.*;
 
@@ -44,7 +52,25 @@ public class Message implements Identifiable, DeferInstance<Message> {
     private Message referenceMsg;
     private Set<StickerItem> stickers;
 
-    private Message(String id, String channelId, User author, String content, Timestamp sentTimestamp, Timestamp editTimestamp, boolean tts, boolean mentionEveryone, Set<Attachment> attachments, Set<Embed> embeds, Set<Reaction> reactions, boolean pinned, String webhookId, MessageType type, MessageReference reference, List<MessageFlag> flags, Message referenceMsg, Set<StickerItem> stickers, Set<User> mentionUsers, Set<String> mentionRoles, DiscordClient client, Set<ChannelMention> mentionChannels) {
+    @Override
+    public boolean equals(Object o) {
+        if(o == null) return false;
+
+        if(o.getClass() != this.getClass()) return false;
+
+        return ((Message) o).getId().equals(this.id);
+    }
+
+    private void initClient(DiscordClient client) {
+        this.client = client;
+    }
+
+    @Override
+    public String toString() {
+        return content;
+    }
+
+    public Message(String id, String channelId, User author, String content, Timestamp sentTimestamp, Timestamp editTimestamp, boolean tts, boolean mentionEveryone, Set<Attachment> attachments, Set<Embed> embeds, Set<Reaction> reactions, boolean pinned, String webhookId, MessageType type, MessageReference reference, List<MessageFlag> flags, Message referenceMsg, Set<StickerItem> stickers, Set<User> mentionUsers, Set<String> mentionRoles, DiscordClient client, Set<ChannelMention> mentionChannels) {
         this.id = id;
         this.channelId = channelId;
         this.author = author;
@@ -141,7 +167,7 @@ public class Message implements Identifiable, DeferInstance<Message> {
             String res = resp.body().string();
             ErrHandler.handle(res);
 
-            return Optional.of(ThreadChannel.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class)));
+            return Optional.of(ThreadChannel.fromJson(client, Constants.MAPPER.readTree(res)));
         } catch(Exception e) {
             e.printStackTrace();
             return Optional.empty();
@@ -216,41 +242,41 @@ public class Message implements Identifiable, DeferInstance<Message> {
     }
 
     public Optional<Message> edit(MessageData data) {
-        JsonObject obj = new JsonObject();
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
 
         if(!data.getContent().isEmpty()) {
-            obj.addProperty("content", data.getContent());
+            obj.put("content", data.getContent());
         }
 
         if(!data.getEmbeds().isEmpty()) {
-            JsonArray arr = new JsonArray();
+            ArrayNode arr = Constants.MAPPER.createArrayNode();
 
             for(Embed emb: data.getEmbeds()) {
                 arr.add(emb.toJson());
             }
 
-            obj.add("embeds", arr);
+            obj.set("embeds", arr);
         }
 
         if(data.getAllowedMentions() != null) {
-            obj.add("allowed_mentions", data.getAllowedMentions().toJson());
+            obj.set("allowed_mentions", data.getAllowedMentions().toJson());
         }
 
         if(!data.getAttachments().isEmpty()) {
-            JsonArray arr = new JsonArray();
+            ArrayNode arr = Constants.MAPPER.createArrayNode();
             int i = 0;
 
             for(File el: data.getAttachments()) {
-                JsonObject o = new JsonObject();
-                o.addProperty("id", i);
-                o.addProperty("filename", el.getName());
-                o.addProperty("description", "");
+                ObjectNode o = Constants.MAPPER.createObjectNode();
+                o.put("id", i);
+                o.put("filename", el.getName());
+                o.put("description", "");
                 arr.add(o);
 
                 i++;
             }
 
-            obj.add("attachments", arr);
+            obj.set("attachments", arr);
         }
 
         MultipartBody.Builder body = new MultipartBody.Builder()
@@ -275,7 +301,7 @@ public class Message implements Identifiable, DeferInstance<Message> {
         try(Response resp = client.getHttpClient().newCall(request).execute()) {
             String res = resp.body().string();
             ErrHandler.handle(res);
-            return Optional.of(Message.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class)));
+            return Optional.of(Message.fromJson(client, Constants.MAPPER.readTree(res)));
         } catch(Exception e) {
             e.printStackTrace();
             return Optional.empty();
@@ -430,17 +456,17 @@ public class Message implements Identifiable, DeferInstance<Message> {
         return this;
     }
 
-    public Set<ChannelMention> getMentionChannels() {
-        return mentionChannels;
+    public ImmutableSet<ChannelMention> getMentionChannels() {
+        return ImmutableSet.copyOf(mentionChannels);
     }
 
-    public static Message fromJson(DiscordClient client, JsonObject json) {
-        String id = json.get("id").getAsString();
-        String channelId = json.get("channel_id").getAsString();
+    public static Message fromJson(DiscordClient client, JsonNode json) {
+        String id = json.get("id").asText();
+        String channelId = json.get("channel_id").asText();
         User author = null;
 
         try {
-            author = Constants.GSON.fromJson(json.get("author").getAsJsonObject(), User.class);
+            author = null; //TODO: User deserializer
         } catch(Exception ignored) {
 
         }
@@ -448,93 +474,107 @@ public class Message implements Identifiable, DeferInstance<Message> {
         String content = "";
 
         if(json.get("content") != null) {
-            if(!json.get("content").isJsonNull()) {
-                content = json.get("content").getAsString();
+            if(!json.get("content").isNull()) {
+                content = json.get("content").asText();
             }
         }
 
         Timestamp sentTimestamp = null;
         if(json.get("timestamp") != null) {
-            if(!json.get("timestamp").isJsonNull()) {
-                String sentS = json.get("timestamp").getAsString();
-                sentS = sentS.replace("+00:00", "");
-                sentS = sentS.replace("T", " ");
+            if(!json.get("timestamp").isNull()) {
+                String sentS = json.get("timestamp").asText();
+                sentS = StringUtils.replace(sentS,  "+00:00", "");
+                sentS = StringUtils.replace(sentS, "T", " ");
                 sentTimestamp = Timestamp.valueOf(sentS);
             }
         }
 
         Timestamp editTimestamp = null;
         if(json.get("edited_timestamp") != null) {
-            if(!json.get("edited_timestamp").isJsonNull()) {
-                String s = json.get("edited_timestamp").getAsString();
-                s = s.replace("+00:00", "");
-                s = s.replace("T", " ");
+            if(!json.get("edited_timestamp").isNull()) {
+                String s = json.get("edited_timestamp").asText();
+                s = StringUtils.replace(s, "+00:00", "");
+                s = StringUtils.replace(s, "T", " ");
                 editTimestamp = Timestamp.valueOf(s);
             }
         }
 
-        boolean tts = json.get("tts").getAsBoolean();
-        boolean mentionEveryone = json.get("mention_everyone").getAsBoolean();
+        boolean tts = false;
+
+        if(json.get("tts") != null) {
+            if(!json.get("tts").isNull()) {
+                tts = json.get("tts").asBoolean();
+            }
+        }
+
+        boolean mentionEveryone = false;
+
+        if(json.get("mention_everyone") != null) {
+            if(!json.get("mention_everyone").isNull()) {
+                mentionEveryone = json.get("mention_everyone").asBoolean();
+            }
+        }
+
         Set<User> mentionUsers = new HashSet<>();
-        JsonArray usersArr = json.get("mentions").getAsJsonArray();
+        JsonNode usersArr = json.get("mentions");
 
-        for(JsonElement el: usersArr) {
-            JsonObject o = el.getAsJsonObject();
-
-            mentionUsers.add(Constants.GSON.fromJson(o, User.class));
+        if(usersArr != null) {
+            for(JsonNode el: usersArr) {
+                mentionUsers.add(User.fromJson(el));
+            }
         }
 
         Set<String> mentionRoles = new HashSet<>();
-        JsonArray rolesArr = json.get("mention_roles").getAsJsonArray();
+        JsonNode rolesArr = json.get("mention_roles");
 
-        for(JsonElement el: rolesArr) {
-            mentionRoles.add(el.getAsString());
+        if(rolesArr != null) {
+            for(JsonNode el: rolesArr) {
+                mentionRoles.add(el.asText());
+            }
         }
 
         Set<Attachment> attachments = new HashSet<>();
-        JsonArray attachmentsArr = json.get("attachments").getAsJsonArray();
+        JsonNode attachmentsArr = json.get("attachments");
 
-        for(JsonElement el: attachmentsArr) {
-            JsonObject o = el.getAsJsonObject();
-
-            attachments.add(Attachment.fromJson(o));
+        if(attachmentsArr != null) {
+            for(JsonNode el: attachmentsArr) {
+                attachments.add(Attachment.fromJson(el));
+            }
         }
 
         Set<Embed> embeds = new HashSet<>();
-        JsonArray embedArr = json.get("embeds").getAsJsonArray();
+        JsonNode embedArr = json.get("embeds");
 
-        for(JsonElement el: embedArr) {
-            JsonObject o = el.getAsJsonObject();
-
-            embeds.add(Embed.fromJson(o));
+        if(embedArr != null) {
+            for(JsonNode el: embedArr) {
+                embeds.add(Embed.fromJson(el));
+            }
         }
 
         Set<Reaction> reactions = new HashSet<>();
 
         if(json.get("reactions") != null) {
-            if(!json.get("reactions").isJsonNull()) {
-                JsonArray arr = json.get("reactions").getAsJsonArray();
+            if(!json.get("reactions").isNull()) {
+                JsonNode arr = json.get("reactions");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-
-                    reactions.add(Reaction.fromJson(client, o));
+                for(JsonNode el: arr) {
+                    reactions.add(Reaction.fromJson(client, el));
                 }
             }
         }
 
-        boolean pinned = json.get("pinned").getAsBoolean();
+        boolean pinned = json.get("pinned").asBoolean();
 
         String webhookId = "";
         if(json.get("webhook_id") != null) {
-            if(!json.get("webhook_id").isJsonNull()) {
-                webhookId = json.get("webhook_id").getAsString();
+            if(!json.get("webhook_id").isNull()) {
+                webhookId = json.get("webhook_id").asText();
             }
         }
 
         MessageType type = null;
         for(MessageType el: MessageType.values()) {
-            if(el.getCode() == json.get("type").getAsInt()) {
+            if(el.getCode() == json.get("type").asInt()) {
                 type = el;
                 break;
             }
@@ -542,15 +582,15 @@ public class Message implements Identifiable, DeferInstance<Message> {
 
         MessageReference reference = null;
         if(json.get("message_reference") != null) {
-            if(!json.get("message_reference").isJsonNull()) {
-                reference = MessageReference.fromJson(json.get("message_reference").getAsJsonObject());
+            if(!json.get("message_reference").isNull()) {
+                reference = MessageReference.fromJson(json.get("message_reference"));
             }
         }
 
         long flagsRaw = 0;
         if(json.get("flags") != null) {
-            if(!json.get("flags").isJsonNull()) {
-                flagsRaw = json.get("flags").getAsLong();
+            if(!json.get("flags").isNull()) {
+                flagsRaw = json.get("flags").asLong();
             }
         }
 
@@ -563,20 +603,19 @@ public class Message implements Identifiable, DeferInstance<Message> {
 
         Message referenceMsg = null;
         if(json.get("referenced_message") != null) {
-            if(!json.get("referenced_message").isJsonNull()) {
-                referenceMsg = Message.fromJson(client, json.get("referenced_message").getAsJsonObject());
+            if(!json.get("referenced_message").isNull()) {
+                referenceMsg = Message.fromJson(client, json.get("referenced_message"));
             }
         }
 
         Set<StickerItem> stickers = new HashSet<>();
 
         if(json.get("sticker_items") != null) {
-            if(!json.get("sticker_items").isJsonNull()) {
-                JsonArray arr = json.get("sticker_items").getAsJsonArray();
+            if(!json.get("sticker_items").isNull()) {
+                JsonNode arr = json.get("sticker_items");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-                    stickers.add(StickerItem.fromJson(o));
+                for(JsonNode el: arr) {
+                    stickers.add(StickerItem.fromJson(el));
                 }
             }
         }
@@ -584,14 +623,17 @@ public class Message implements Identifiable, DeferInstance<Message> {
         Set<ChannelMention> mentionChannels = new HashSet<>();
 
         if(json.get("mention_channels") != null) {
-            if(!json.get("mention_channels").isJsonNull()) {
-                JsonArray arr = json.get("mention_channels").getAsJsonArray();
+            if(!json.get("mention_channels").isNull()) {
+                JsonNode arr = json.get("mention_channels");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-                    mentionChannels.add(ChannelMention.fromJson(o));
+                for(JsonNode el: arr) {
+                    mentionChannels.add(ChannelMention.fromJson(el));
                 }
             }
+        }
+
+        if(client.isOptimized()) {
+            System.gc();
         }
 
         return new Message(id, channelId, author, content, sentTimestamp, editTimestamp, tts, mentionEveryone, attachments, embeds, reactions, pinned, webhookId, type, reference, flags, referenceMsg, stickers, mentionUsers, mentionRoles, client, mentionChannels);
@@ -629,24 +671,24 @@ public class Message implements Identifiable, DeferInstance<Message> {
         return client;
     }
 
-    public Set<User> getMentionUsers() {
-        return mentionUsers;
+    public ImmutableSet<User> getMentionUsers() {
+        return ImmutableSet.copyOf(mentionUsers);
     }
 
-    public Set<String> getMentionRoles() {
-        return mentionRoles;
+    public ImmutableSet<String> getMentionRoles() {
+        return ImmutableSet.copyOf(mentionRoles);
     }
 
-    public Set<Attachment> getAttachments() {
-        return attachments;
+    public ImmutableSet<Attachment> getAttachments() {
+        return ImmutableSet.copyOf(attachments);
     }
 
-    public Set<Embed> getEmbeds() {
-        return embeds;
+    public ImmutableSet<Embed> getEmbeds() {
+        return ImmutableSet.copyOf(embeds);
     }
 
-    public Set<Reaction> getReactions() {
-        return reactions;
+    public ImmutableSet<Reaction> getReactions() {
+        return ImmutableSet.copyOf(reactions);
     }
 
     public boolean isPinned() {
@@ -665,8 +707,8 @@ public class Message implements Identifiable, DeferInstance<Message> {
         return reference;
     }
 
-    public List<MessageFlag> getFlags() {
-        return flags;
+    public ImmutableList<MessageFlag> getFlags() {
+        return ImmutableList.copyOf(flags);
     }
 
     public Message getReferenceMsg() {

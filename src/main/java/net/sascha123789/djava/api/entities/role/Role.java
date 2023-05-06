@@ -4,6 +4,8 @@
 
 package net.sascha123789.djava.api.entities.role;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.Identifiable;
 import net.sascha123789.djava.api.enums.DiscordPermission;
@@ -42,6 +44,10 @@ public class Role implements Identifiable {
         this.permissions = permissions;
         this.integrationManaged = integrationManaged;
         this.mentionable = mentionable;
+    }
+
+    public String toMention() {
+        return "<@&" + id + ">";
     }
 
     public RoleTags getTags() {
@@ -86,7 +92,7 @@ public class Role implements Identifiable {
         return permissions;
     }
 
-    public Set<DiscordPermission> getPermissions() {
+    public final ImmutableSet<DiscordPermission> getPermissions() {
         Set<DiscordPermission> set = new HashSet<>();
 
         for(DiscordPermission perm: DiscordPermission.values()) {
@@ -95,7 +101,7 @@ public class Role implements Identifiable {
             }
         }
 
-        return set;
+        return ImmutableSet.copyOf(set);
     }
 
     public boolean isIntegrationManaged() {
@@ -106,31 +112,31 @@ public class Role implements Identifiable {
         return mentionable;
     }
 
-    public static Role fromJson(DiscordClient client, JsonObject json) {
-        String id = json.get("id").getAsString();
-        String name = json.get("name").getAsString();
-        Color color = Color.decode(String.valueOf(json.get("color").getAsInt()));
-        boolean hoist = json.get("hoist").getAsBoolean();
+    public static Role fromJson(DiscordClient client, JsonNode json) {
+        String id = json.get("id").asText();
+        String name = json.get("name").asText();
+        Color color = Color.decode(String.valueOf(json.get("color").asInt()));
+        boolean hoist = json.get("hoist").asBoolean();
         String icon = "";
         if(json.get("icon") != null) {
-            if(!json.get("icon").isJsonNull()) {
-                icon = json.get("icon").getAsString();
+            if(!json.get("icon").isNull()) {
+                icon = json.get("icon").asText();
             }
         }
         String emoji = "";
         if(json.get("unicode_emoji") != null) {
-            if(!json.get("unicode_emoji").isJsonNull()) {
-                emoji = json.get("unicode_emoji").getAsString();
+            if(!json.get("unicode_emoji").isNull()) {
+                emoji = json.get("unicode_emoji").asText();
             }
         }
-        int position = json.get("position").getAsInt();
-        String permissions = json.get("permissions").getAsString();
-        boolean managed = json.get("managed").getAsBoolean();
-        boolean mentionable = json.get("mentionable").getAsBoolean();
+        int position = json.get("position").asInt();
+        String permissions = json.get("permissions").asText();
+        boolean managed = json.get("managed").asBoolean();
+        boolean mentionable = json.get("mentionable").asBoolean();
         RoleTags tags = null;
         if(json.get("tags") != null) {
-            if(!json.get("tags").isJsonNull()) {
-                tags = RoleTags.fromJson(json.get("tags").getAsJsonObject());
+            if(!json.get("tags").isNull()) {
+                tags = RoleTags.fromJson(json.get("tags"));
             }
         }
 

@@ -4,6 +4,8 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -42,7 +44,7 @@ public class Emoji implements Identifiable {
         try(Response resp = client.getHttpClient().newCall(request).execute()) {
             String res = resp.body().string();
             ErrHandler.handle(res);
-            return Emoji.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class));
+            return Emoji.fromJson(client, Constants.MAPPER.readTree(res));
         } catch(Exception e) {
             e.printStackTrace();
             throw new NullPointerException("Emoji not found!");
@@ -66,7 +68,7 @@ public class Emoji implements Identifiable {
 
     @Override
     public String toString() {
-        return "<" + (animated ? "a" : "") + ":" + name + ":" + id + ">";
+        return unicode ? name : "<" + (animated ? "a" : "") + ":" + name + ":" + id + ">";
     }
 
     public String toUrlString() {
@@ -88,64 +90,66 @@ public class Emoji implements Identifiable {
         return o;
     }
 
-    public static Emoji fromJson(DiscordClient client, JsonObject json) {
+    public static Emoji fromJson(DiscordClient client, JsonNode json) {
         String id = "";
         if(json.get("id") != null) {
-            if(!json.get("id").isJsonNull()) {
-                id = json.get("id").getAsString();
+            if(!json.get("id").isNull()) {
+                id = json.get("id").asText();
             }
         }
 
         String name = "";
         if(json.get("name") != null) {
-            if(!json.get("name").isJsonNull()) {
-                name = json.get("name").getAsString();
+            if(!json.get("name").isNull()) {
+                name = json.get("name").asText();
             }
         }
 
         Set<Role> roles = new HashSet<>();
 
         if(json.get("roles") != null) {
-            if(!json.get("roles").isJsonNull()) {
-                JsonArray arr = json.get("roles").getAsJsonArray();
+            if(!json.get("roles").isNull()) {
+                JsonNode arr = json.get("roles");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-
-                    roles.add(Role.fromJson(client, o));
+                for(JsonNode el: arr) {
+                    roles.add(Role.fromJson(client, el));
                 }
             }
         }
 
         User user = null;
         if(json.get("user") != null) {
-            if(!json.get("user").isJsonNull()) {
-                user = Constants.GSON.fromJson(json.get("user"), User.class);
+            if(!json.get("user").isNull()) {
+                user = User.fromJson(json.get("user"));
             }
         }
 
          boolean managed = false;
         if(json.get("managed") != null) {
-            if(!json.get("managed").isJsonNull()) {
-                managed = json.get("managed").getAsBoolean();
+            if(!json.get("managed").isNull()) {
+                managed = json.get("managed").asBoolean();
             }
         }
 
         boolean animated = false;
         if(json.get("animated") != null) {
-            if(!json.get("animated").isJsonNull()) {
-                animated = json.get("animated").getAsBoolean();
+            if(!json.get("animated").isNull()) {
+                animated = json.get("animated").asBoolean();
             }
         }
 
         boolean available = false;
         if(json.get("available") != null) {
-            if(!json.get("available").isJsonNull()) {
-                available = json.get("available").getAsBoolean();
+            if(!json.get("available").isNull()) {
+                available = json.get("available").asBoolean();
             }
         }
 
-        return new Emoji(id, name, roles, user, managed, animated, available, false);
+        if(client.isOptimized()) {
+            System.gc();
+        }
+
+        return new Emoji(id, name, roles, user, managed, animated, available, (id == null));
     }
 
     @Override
@@ -164,8 +168,8 @@ public class Emoji implements Identifiable {
 
     /**
      * @return Roles allowed to use this emoji**/
-    public Set<Role> getRoles() {
-        return roles;
+    public ImmutableSet<Role> getRoles() {
+        return ImmutableSet.copyOf(roles);
     }
 
     /**

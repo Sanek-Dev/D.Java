@@ -4,6 +4,10 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -118,44 +122,43 @@ public class ForumChannel extends BaseChannel {
             return this;
         }
 
-        public void update() {
-            JsonObject obj = new JsonObject();
+        public final void update() {
+            ObjectNode obj = Constants.MAPPER.createObjectNode();
 
             if (!name.isEmpty()) {
-                obj.addProperty("name", name);
+                obj.put("name", name);
             }
 
             if (position != -1) {
-                obj.addProperty("position", Math.abs(position));
+                obj.put("position", Math.abs(position));
             }
 
             if (!overwrites.isEmpty()) {
-                JsonArray arr = new JsonArray();
+                ArrayNode arr = Constants.MAPPER.createArrayNode();
 
                 for (PermissionOverwrite overwrite : overwrites) {
-                    JsonObject o = overwrite.toJson();
-                    arr.add(o);
+                    arr.add(overwrite.toJson());
                 }
 
-                obj.add("permission_overwrites", arr);
+                obj.set("permission_overwrites", arr);
             }
 
             if(layoutType != null) {
-                obj.addProperty("default_forum_layout", (layoutType == ForumLayout.NOT_SET ? 0 : (layoutType == ForumLayout.LIST_VIEW ? 1 : 2)));
+                obj.put("default_forum_layout", (layoutType == ForumLayout.NOT_SET ? 0 : (layoutType == ForumLayout.LIST_VIEW ? 1 : 2)));
             }
 
             if(sortOrder != null) {
-                obj.addProperty("default_sort_order", (sortOrder == ForumOrderType.LATEST_ACTIVITY ? 0 : 1));
+                obj.put("default_sort_order", (sortOrder == ForumOrderType.LATEST_ACTIVITY ? 0 : 1));
             }
 
-            obj.addProperty("nsfw", nsfw);
+            obj.put("nsfw", nsfw);
 
             if (!parentId.isEmpty()) {
-                obj.addProperty("parent_id", parentId);
+                obj.put("parent_id", parentId);
             }
 
             if(rateLimit != -1) {
-                obj.addProperty("rate_limit_per_user", Math.abs(rateLimit));
+                obj.put("rate_limit_per_user", Math.abs(rateLimit));
             }
 
             if (!flags.isEmpty()) {
@@ -163,83 +166,85 @@ public class ForumChannel extends BaseChannel {
                 for (ChannelFlag el : this.flags) {
                     flags += el.getCode();
                 }
-                obj.addProperty("flags", flags);
+                obj.put("flags", flags);
             }
 
-            Request request = new Request.Builder()
-                    .url(Constants.BASE_URL + "/channels/" + channel.getId())
-                    .patch(RequestBody.create(obj.toString(), MediaType.parse("application/json"))).build();
+            try {
+                Request request = new Request.Builder()
+                        .url(Constants.BASE_URL + "/channels/" + channel.getId())
+                        .patch(RequestBody.create(Constants.MAPPER.writeValueAsString(obj), MediaType.parse("application/json"))).build();
 
-            try(Response resp = client.getHttpClient().newCall(request).execute()) {
-                String str = resp.body().string();
+                try(Response resp = client.getHttpClient().newCall(request).execute()) {
+                    String str = resp.body().string();
 
-                ErrHandler.handle(str);
-            } catch (Exception e) {
+                    ErrHandler.handle(str);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } catch(Exception e) {
                 e.printStackTrace();
             }
         }
     }
 
-    public static ForumChannel fromJson(DiscordClient client, JsonObject json) {
+    public static ForumChannel fromJson(DiscordClient client, JsonNode json) {
         /* Base */
-        String id = json.get("id").getAsString();
-        int t = json.get("type").getAsInt();
+        String id = json.get("id").asText();
+        int t = json.get("type").asInt();
         ChannelType type = (t == 0 ? ChannelType.TEXT : (t == 2 ? ChannelType.VOICE : (t == 4 ? ChannelType.CATEGORY : (t == 5 ? ChannelType.ANNOUNCEMENT : (t == 10 ? ChannelType.ANNOUNCEMENT : (t == 11 ? ChannelType.PUBLIC_THREAD : (t == 12 ? ChannelType.PRIVATE_THREAD : (t == 13 ? ChannelType.STAGE : (t == 14 ? ChannelType.DIRECTORY : ChannelType.FORUM)))))))));
         String guildId = "";
 
         if(json.get("guild_id") != null) {
-            if(!json.get("guild_id").isJsonNull()) {
-                guildId = json.get("guild_id").getAsString();
+            if(!json.get("guild_id").isNull()) {
+                guildId = json.get("guild_id").asText();
             }
         }
 
         int position = 0;
         if(json.get("position") != null) {
-            if(!json.get("position").isJsonNull()) {
-                position = json.get("position").getAsInt();
+            if(!json.get("position").isNull()) {
+                position = json.get("position").asInt();
             }
         }
 
         Set<PermissionOverwrite> overwrites = new HashSet<>();
 
         if(json.get("permission_overwrites") != null) {
-            if(!json.get("permission_overwrites").isJsonNull()) {
-                JsonArray arr = json.get("permission_overwrites").getAsJsonArray();
+            if(!json.get("permission_overwrites").isNull()) {
+                JsonNode arr = json.get("permission_overwrites");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-
-                    overwrites.add(PermissionOverwrite.fromJson(o));
+                for(JsonNode el: arr) {
+                    overwrites.add(PermissionOverwrite.fromJson(el));
                 }
             }
         }
 
         String name = "";
         if(json.get("name") != null) {
-            if(!json.get("name").isJsonNull()) {
-                name = json.get("name").getAsString();
+            if(!json.get("name").isNull()) {
+                name = json.get("name").asText();
             }
         }
 
         boolean nsfw = false;
         if(json.get("nsfw") != null) {
-            if(!json.get("nsfw").isJsonNull()) {
-                nsfw = json.get("nsfw").getAsBoolean();
+            if(!json.get("nsfw").isNull()) {
+                nsfw = json.get("nsfw").asBoolean();
             }
         }
 
         String parentId = "";
         if(json.get("parent_id") != null) {
-            if(!json.get("parent_id").isJsonNull()) {
-                parentId = json.get("parent_id").getAsString();
+            if(!json.get("parent_id").isNull()) {
+                parentId = json.get("parent_id").asText();
             }
         }
 
         Set<ChannelFlag> flags = new HashSet<>();
         long flagsRaw = 0;
         if(json.get("flags") != null) {
-            if(!json.get("flags").isJsonNull()) {
-                flagsRaw = json.get("flags").getAsLong();
+            if(!json.get("flags").isNull()) {
+                flagsRaw = json.get("flags").asLong();
             }
         }
 
@@ -252,60 +257,62 @@ public class ForumChannel extends BaseChannel {
 
         Set<ForumTag> availableTags = new HashSet<>();
         if(json.get("available_tags") != null) {
-            if(!json.get("available_tags").isJsonNull()) {
-                JsonArray arr = json.get("available_tags").getAsJsonArray();
+            if(!json.get("available_tags").isNull()) {
+                JsonNode arr = json.get("available_tags");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-                    availableTags.add(ForumTag.fromJson(o));
+                for(JsonNode el: arr) {
+                    availableTags.add(ForumTag.fromJson(el));
                 }
             }
         }
 
         Set<ForumTag> appliedTags = new HashSet<>();
         if(json.get("applied_tags") != null) {
-            if(!json.get("applied_tags").isJsonNull()) {
-                JsonArray arr = json.get("applied_tags").getAsJsonArray();
+            if(!json.get("applied_tags").isNull()) {
+                JsonNode arr = json.get("applied_tags");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-                    appliedTags.add(ForumTag.fromJson(o));
+                for(JsonNode el: arr) {
+                    appliedTags.add(ForumTag.fromJson(el));
                 }
             }
         }
 
         DefaultReaction defaultReaction = null;
         if(json.get("default_reaction_emoji") != null) {
-            if(!json.get("default_reaction_emoji").isJsonNull()) {
-                defaultReaction = DefaultReaction.fromJson(json.get("default_reaction_emoji").getAsJsonObject());
+            if(!json.get("default_reaction_emoji").isNull()) {
+                defaultReaction = DefaultReaction.fromJson(json.get("default_reaction_emoji"));
             }
         }
 
         ForumOrderType sortOrder = ForumOrderType.LATEST_ACTIVITY;
         if(json.get("default_sort_order") != null) {
-            if(!json.get("default_sort_order").isJsonNull()) {
-                int typ = json.get("default_sort_order").getAsInt();
+            if(!json.get("default_sort_order").isNull()) {
+                int typ = json.get("default_sort_order").asInt();
                 sortOrder = (typ == 0 ? ForumOrderType.LATEST_ACTIVITY : ForumOrderType.CREATION_DATE);
             }
         }
 
         ForumLayout layoutType = ForumLayout.NOT_SET;
         if(json.get("default_forum_layout") != null) {
-            if(!json.get("default_forum_layout").isJsonNull()) {
-                int typ = json.get("default_forum_layout").getAsInt();
+            if(!json.get("default_forum_layout").isNull()) {
+                int typ = json.get("default_forum_layout").asInt();
                 layoutType = (typ == 0 ? ForumLayout.NOT_SET : (typ == 1 ? ForumLayout.LIST_VIEW : ForumLayout.GALLERY_VIEW));
             }
+        }
+
+        if(client.isOptimized()) {
+            System.gc();
         }
 
         return new ForumChannel(client, id, type, guildId, position, overwrites, name, nsfw, parentId, flags, availableTags, appliedTags, defaultReaction, sortOrder, layoutType);
     }
 
-    public Set<ForumTag> getAvailableTags() {
-        return availableTags;
+    public ImmutableSet<ForumTag> getAvailableTags() {
+        return ImmutableSet.copyOf(availableTags);
     }
 
-    public Set<ForumTag> getAppliedTags() {
-        return appliedTags;
+    public ImmutableSet<ForumTag> getAppliedTags() {
+        return ImmutableSet.copyOf(appliedTags);
     }
 
     public DefaultReaction getDefaultReaction() {

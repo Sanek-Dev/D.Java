@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
 
 public class DefaultReaction {
@@ -15,18 +16,18 @@ public class DefaultReaction {
         this.emojiId = emojiId;
     }
 
-    public static DefaultReaction fromJson(JsonObject json) {
+    public static DefaultReaction fromJson(JsonNode json) {
         String emojiName = "";
         if(json.get("emoji_name") != null) {
-            if(!json.get("emoji_name").isJsonNull()) {
-                emojiName = json.get("emoji_name").getAsString();
+            if(!json.get("emoji_name").isNull()) {
+                emojiName = json.get("emoji_name").asText();
             }
         }
 
         String emojiId = "";
         if(json.get("emoji_id") != null) {
-            if(!json.get("emoji_id").isJsonNull()) {
-                emojiId = json.get("emoji_id").getAsString();
+            if(!json.get("emoji_id").isNull()) {
+                emojiId = json.get("emoji_id").asText();
             }
         }
 

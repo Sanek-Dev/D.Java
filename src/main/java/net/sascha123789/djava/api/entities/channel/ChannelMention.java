@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.Identifiable;
 import net.sascha123789.djava.api.enums.ChannelType;
@@ -33,12 +34,12 @@ public class ChannelMention implements Identifiable {
         return name;
     }
 
-    public static ChannelMention fromJson(JsonObject json) {
-        String id = json.get("id").getAsString();
-        String guildId = json.get("guild_id").getAsString();
-        int t = json.get("type").getAsInt();
+    public static ChannelMention fromJson(JsonNode json) {
+        String id = json.get("id").asText();
+        String guildId = json.get("guild_id").asText();
+        int t = json.get("type").asInt();
         ChannelType type = (t == 0 ? ChannelType.TEXT : (t == 2 ? ChannelType.VOICE : (t == 4 ? ChannelType.CATEGORY : (t == 5 ? ChannelType.ANNOUNCEMENT : (t == 10 ? ChannelType.ANNOUNCEMENT : (t == 11 ? ChannelType.PUBLIC_THREAD : (t == 12 ? ChannelType.PRIVATE_THREAD : (t == 13 ? ChannelType.STAGE : (t == 14 ? ChannelType.DIRECTORY : ChannelType.FORUM)))))))));
-        String name = json.get("name").getAsString();
+        String name = json.get("name").asText();
 
         return new ChannelMention(id, guildId, type, name);
     }

@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.gateway.DiscordClient;
 
@@ -18,10 +19,10 @@ public class Reaction {
         this.emoji = emoji;
     }
 
-    public static Reaction fromJson(DiscordClient client, JsonObject json) {
-        int count = json.get("count").getAsInt();
-        boolean me = json.get("me").getAsBoolean();
-        Emoji emoji = Emoji.fromJson(client, json.get("emoji").getAsJsonObject());
+    public static Reaction fromJson(DiscordClient client, JsonNode json) {
+        int count = json.get("count").asInt();
+        boolean me = json.get("me").asBoolean();
+        Emoji emoji = Emoji.fromJson(client, json.get("emoji"));
 
         return new Reaction(count, me, emoji);
     }

@@ -4,6 +4,8 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -29,11 +31,11 @@ public abstract class BaseChannel implements Identifiable {
     protected ChannelType type;
     protected String guildId;
     protected int position;
-    protected Set<PermissionOverwrite> permissionOverwrites;
+    protected ImmutableSet<PermissionOverwrite> permissionOverwrites;
     protected String name;
     protected boolean nsfw;
     protected String parentId;
-    protected Set<ChannelFlag> flags;
+    protected ImmutableSet<ChannelFlag> flags;
     protected DiscordClient client;
 
     protected BaseChannel(DiscordClient client, String id, ChannelType type, String guildId, int position, Set<PermissionOverwrite> permissionOverwrites, String name, boolean nsfw, String parentId, Set<ChannelFlag> flags) {
@@ -41,12 +43,16 @@ public abstract class BaseChannel implements Identifiable {
         this.type = type;
         this.guildId = guildId;
         this.position = position;
-        this.permissionOverwrites = permissionOverwrites;
+        this.permissionOverwrites = ImmutableSet.copyOf(permissionOverwrites);
         this.name = name;
         this.nsfw = nsfw;
         this.parentId = parentId;
-        this.flags = flags;
+        this.flags = ImmutableSet.copyOf(flags);
         this.client = client;
+    }
+
+    public String toMention() {
+        return "<#" + id + ">";
     }
 
     public Optional<Invite> createInvite(InviteData data) {
@@ -58,7 +64,7 @@ public abstract class BaseChannel implements Identifiable {
         try(Response resp = client.getHttpClient().newCall(request).execute()) {
             String res = resp.body().string();
             ErrHandler.handle(res);
-            return Optional.of(Invite.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class)));
+            return Optional.of(Invite.fromJson(client, Constants.MAPPER.readTree(res)));
         } catch(Exception e) {
             e.printStackTrace();
             return Optional.empty();
@@ -69,7 +75,7 @@ public abstract class BaseChannel implements Identifiable {
         return ((MessageableChannel) this);
     }
 
-    public Optional<Set<Invite>> getInvites() {
+    public Optional<ImmutableSet<Invite>> getInvites() {
         Set<Invite> set = new HashSet<>();
 
         Request request = new Request.Builder()
@@ -81,15 +87,13 @@ public abstract class BaseChannel implements Identifiable {
             String res = resp.body().string();
             ErrHandler.handle(res);
 
-            JsonArray arr = Constants.GSON.fromJson(res, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(res);
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                set.add(Invite.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Invite.fromJson(client, el));
             }
 
-            return Optional.of(set);
+            return Optional.of(ImmutableSet.copyOf(set));
         } catch(Exception e) {
             e.printStackTrace();
             return Optional.empty();
@@ -187,7 +191,7 @@ public abstract class BaseChannel implements Identifiable {
         return position;
     }
 
-    public Set<PermissionOverwrite> getPermissionOverwrites() {
+    public ImmutableSet<PermissionOverwrite> getPermissionOverwrites() {
         return permissionOverwrites;
     }
 
@@ -203,7 +207,7 @@ public abstract class BaseChannel implements Identifiable {
         return parentId;
     }
 
-    public Set<ChannelFlag> getFlags() {
+    public ImmutableSet<ChannelFlag> getFlags() {
         return flags;
     }
 

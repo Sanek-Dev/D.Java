@@ -4,10 +4,17 @@
 
 package net.sascha123789.djava.api.interactions;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import net.sascha123789.djava.api.Identifiable;
 import net.sascha123789.djava.api.entities.channel.BaseChannel;
+import net.sascha123789.djava.api.entities.reply.MessageData;
 import net.sascha123789.djava.api.enums.DiscordLanguage;
 import net.sascha123789.djava.gateway.DiscordClient;
+import net.sascha123789.djava.utils.Constants;
+import net.sascha123789.djava.utils.ErrHandler;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public abstract class BaseInteraction implements Identifiable {
     protected String id;
@@ -24,6 +31,10 @@ public abstract class BaseInteraction implements Identifiable {
         this.locale = locale;
         this.client = client;
         this.channel = channel;
+    }
+
+    public DiscordClient getClient() {
+        return client;
     }
 
     /**

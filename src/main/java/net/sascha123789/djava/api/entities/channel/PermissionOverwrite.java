@@ -4,9 +4,13 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.Identifiable;
 import net.sascha123789.djava.api.enums.DiscordPermission;
+import net.sascha123789.djava.utils.Constants;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -24,18 +28,18 @@ public class PermissionOverwrite implements Identifiable {
         this.type = type;
     }
 
-    public static PermissionOverwrite createForUser(String id, Set<DiscordPermission> allow, Set<DiscordPermission> deny) {
+    public static final PermissionOverwrite createForUser(String id, Set<DiscordPermission> allow, Set<DiscordPermission> deny) {
         return new PermissionOverwrite(id, Type.MEMBER, allow, deny);
     }
 
-    public static PermissionOverwrite createForRole(String id, Set<DiscordPermission> allow, Set<DiscordPermission> deny) {
+    public static final PermissionOverwrite createForRole(String id, Set<DiscordPermission> allow, Set<DiscordPermission> deny) {
         return new PermissionOverwrite(id, Type.ROLE, allow, deny);
     }
 
-    public JsonObject toJson() {
-        JsonObject o = new JsonObject();
-        o.addProperty("id", id);
-        o.addProperty("type", (type == Type.ROLE ? 0 : 1));
+    public final JsonNode toJson() {
+        ObjectNode o = Constants.MAPPER.createObjectNode();
+        o.put("id", id);
+        o.put("type", (type == Type.ROLE ? 0 : 1));
         long allow = 0;
         for(DiscordPermission perm: this.allow) {
             allow += perm.getCode();
@@ -45,18 +49,18 @@ public class PermissionOverwrite implements Identifiable {
             deny += perm.getCode();
         }
 
-        o.addProperty("allow", String.valueOf(allow));
-        o.addProperty("deny", String.valueOf(deny));
+        o.put("allow", String.valueOf(allow));
+        o.put("deny", String.valueOf(deny));
 
         return o;
     }
 
-    public static PermissionOverwrite fromJson(JsonObject json) {
-        String id = json.get("id").getAsString();
-        int t = json.get("type").getAsInt();
+    public static PermissionOverwrite fromJson(JsonNode json) {
+        String id = json.get("id").asText();
+        int t = json.get("type").asInt();
         Type type = (t == 0 ? Type.ROLE : Type.MEMBER);
-        long allowBit = Long.parseLong(json.get("allow").getAsString());
-        long denyBit = Long.parseLong(json.get("deny").getAsString());
+        long allowBit = Long.parseLong(json.get("allow").asText());
+        long denyBit = Long.parseLong(json.get("deny").asText());
 
         Set<DiscordPermission> allow = new HashSet<>();
         Set<DiscordPermission> deny = new HashSet<>();
@@ -76,12 +80,12 @@ public class PermissionOverwrite implements Identifiable {
         return new PermissionOverwrite(id, type, allow, deny);
     }
 
-    public Set<DiscordPermission> getDenyPermissions() {
-        return deny;
+    public ImmutableSet<DiscordPermission> getDenyPermissions() {
+        return ImmutableSet.copyOf(deny);
     }
 
-    public Set<DiscordPermission> getAllowPermissions() {
-        return allow;
+    public ImmutableSet<DiscordPermission> getAllowPermissions() {
+        return ImmutableSet.copyOf(allow);
     }
 
     /**

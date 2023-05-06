@@ -4,6 +4,8 @@
 
 package net.sascha123789.djava.api.entities.guild;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -23,23 +25,21 @@ public class GuildWelcomeScreen {
         this.client = client;
     }
 
-    public static GuildWelcomeScreen fromJson(DiscordClient client, JsonObject json) {
+    public static GuildWelcomeScreen fromJson(DiscordClient client, JsonNode json) {
         String desc = "";
         if(json.get("description") != null) {
-            if(!json.get("description").isJsonNull()) {
-                desc = json.get("description").getAsString();
+            if(!json.get("description").isNull()) {
+                desc = json.get("description").asText();
             }
         }
 
         List<GuildWelcomeScreenChannel> channels = new ArrayList<>();
         if(json.get("welcome_channels") != null) {
-            if(!json.get("welcome_channels").isJsonNull()) {
-                JsonArray arr = json.get("welcome_channels").getAsJsonArray();
+            if(!json.get("welcome_channels").isNull()) {
+                JsonNode arr = json.get("welcome_channels");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-
-                    channels.add(GuildWelcomeScreenChannel.fromJson(client, o));
+                for(JsonNode el: arr) {
+                    channels.add(GuildWelcomeScreenChannel.fromJson(client, el));
                 }
             }
         }
@@ -51,7 +51,7 @@ public class GuildWelcomeScreen {
         return description;
     }
 
-    public List<GuildWelcomeScreenChannel> getChannels() {
-        return channels;
+    public ImmutableSet<GuildWelcomeScreenChannel> getChannels() {
+        return ImmutableSet.copyOf(channels);
     }
 }

@@ -4,8 +4,12 @@
 
 package net.sascha123789.djava.api.entities.reply;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import net.sascha123789.djava.utils.Constants;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,35 +27,35 @@ public class AllowedMentions {
         this.repliedUser = repliedUser;
     }
 
-    public JsonObject toJson() {
-        JsonObject o = new JsonObject();
-        JsonArray arrParse = new JsonArray();
+    public final JsonNode toJson() {
+        ObjectNode o = Constants.MAPPER.createObjectNode();
+        ArrayNode arrParse = Constants.MAPPER.createArrayNode();
 
         for(String el: parse) {
             arrParse.add(el);
         }
 
-        JsonArray arrRoles = new JsonArray();
+        ArrayNode arrRoles = Constants.MAPPER.createArrayNode();
 
         for(String el: roles) {
             arrRoles.add(el);
         }
 
-        JsonArray arrUsers = new JsonArray();
+        ArrayNode arrUsers = Constants.MAPPER.createArrayNode();
         for(String el: users) {
             arrUsers.add(el);
         }
 
         if(!roles.isEmpty()) {
-            o.add("roles", arrRoles);
+            o.set("roles", arrRoles);
         }
 
         if(!users.isEmpty()) {
-            o.add("users", arrUsers);
+            o.set("users", arrUsers);
         }
 
-        o.add("parse", arrParse);
-        o.addProperty("replied_user", repliedUser);
+        o.set("parse", arrParse);
+        o.put("replied_user", repliedUser);
 
         return o;
     }

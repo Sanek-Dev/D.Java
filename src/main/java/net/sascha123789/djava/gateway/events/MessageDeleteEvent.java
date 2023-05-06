@@ -7,19 +7,20 @@ package net.sascha123789.djava.gateway.events;
 import net.sascha123789.djava.api.Identifiable;
 import net.sascha123789.djava.api.entities.channel.BaseChannel;
 import net.sascha123789.djava.api.entities.channel.MessageableChannel;
+import net.sascha123789.djava.api.entities.guild.Guild;
 import net.sascha123789.djava.gateway.DiscordClient;
 
 public class MessageDeleteEvent extends BaseEvent implements Identifiable {
     private String id;
     private MessageableChannel channel;
     private String channelId;
-    private String guildId;
+    private Guild guild;
 
-    public MessageDeleteEvent(DiscordClient client, String id, String channelId, String guildId) {
+    public MessageDeleteEvent(DiscordClient client, String id, String channelId, Guild guild) {
         super(client);
         this.id = id;
         this.channelId = channelId;
-        this.guildId = guildId;
+        this.guild = guild;
         this.channel = client.getChannelById(channelId).get().asMessageable();
     }
 
@@ -31,8 +32,8 @@ public class MessageDeleteEvent extends BaseEvent implements Identifiable {
         return channelId;
     }
 
-    public String getGuildId() {
-        return guildId;
+    public Guild getGuild() {
+        return guild;
     }
 
     @Override

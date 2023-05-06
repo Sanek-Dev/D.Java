@@ -4,12 +4,14 @@
 
 package net.sascha123789.djava.api.entities.invites;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.User;
 import net.sascha123789.djava.api.entities.channel.BaseChannel;
 import net.sascha123789.djava.gateway.DiscordClient;
 import net.sascha123789.djava.utils.ChannelUtils;
 import net.sascha123789.djava.utils.Constants;
+import org.apache.commons.lang3.StringUtils;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -34,28 +36,28 @@ public class Invite {
         this.metadata = metadata;
     }
 
-    public static Invite fromJson(DiscordClient client, JsonObject json) {
-        String code = json.get("code").getAsString();
+    public static Invite fromJson(DiscordClient client, JsonNode json) {
+        String code = json.get("code").asText();
         BaseChannel channel = null;
         if(json.get("channel") != null) {
-            if(!json.get("channel").isJsonNull()) {
-                channel = ChannelUtils.switchTypes(client, json.get("channel").getAsJsonObject());
+            if(!json.get("channel").isNull()) {
+                channel = ChannelUtils.switchTypes(client, json.get("channel"));
             }
         }
 
         User inviter = null;
         if(json.get("inviter") != null) {
-            if(!json.get("inviter").isJsonNull()) {
-                inviter = Constants.GSON.fromJson(json.get("inviter").getAsJsonObject(), User.class);
+            if(!json.get("inviter").isNull()) {
+                inviter = User.fromJson(json.get("inviter"));
             }
         }
 
         LocalDateTime expiresAt = null;
         if(json.get("expires_at") != null) {
-            if(!json.get("expires_at").isJsonNull()) {
-                String s = json.get("expires_at").getAsString();
-                s = s.replace("+00:00", "");
-                s = s.replace("T", " ");
+            if(!json.get("expires_at").isNull()) {
+                String s = json.get("expires_at").asText();
+                s = StringUtils.replace(s,  "+00:00", "");
+                s = StringUtils.replace(s, "T", " ");
                 Timestamp timestamp = Timestamp.valueOf(s);
                 expiresAt = timestamp.toLocalDateTime();
             }

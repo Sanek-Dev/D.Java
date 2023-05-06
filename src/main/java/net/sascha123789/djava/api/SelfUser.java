@@ -4,7 +4,11 @@
 
 package net.sascha123789.djava.api;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonObject;
+import net.sascha123789.djava.api.entities.guild.Guild;
 import net.sascha123789.djava.api.enums.ImageType;
 import net.sascha123789.djava.gateway.DiscordClient;
 import net.sascha123789.djava.utils.Constants;
@@ -16,6 +20,8 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
 
 public class SelfUser extends User {
     private DiscordClient client;
@@ -25,8 +31,8 @@ public class SelfUser extends User {
         this.client = client;
     }
 
-    public static SelfUser fromJson(DiscordClient client, JsonObject json) {
-        User user = Constants.GSON.fromJson(json, User.class);
+    public static SelfUser fromJson(DiscordClient client, JsonNode json) {
+        User user = User.fromJson(json);
 
         return new SelfUser(client, user.getId(), user.getUsername(), user.getDiscriminator(), user.getAvatarHash(), user.isBot(), user.isSystem(), user.isMfaEnabled(), user.getBannerHash(), user.getAccentColorRaw(), user.getLocaleRaw(), user.getFlagsRaw(), user.getPublicFlagsRaw(), user.getNitroTypeRaw());
     }
@@ -85,30 +91,34 @@ public class SelfUser extends User {
         }
 
         public void update() {
-            JsonObject obj = new JsonObject();
+            ObjectNode obj = Constants.MAPPER.createObjectNode();
 
             if(!username.isEmpty()) {
-                obj.addProperty("username", username);
+                obj.put("username", username);
             }
 
             if(avatarType == 1) {
                 if(avatarFile != null) {
-                    obj.addProperty("avatar", ImageUtils.toDataString(avatarFile, avatarImageType));
+                    obj.put("avatar", ImageUtils.toDataString(avatarFile, avatarImageType));
                 }
             } else if(avatarType == 2) {
                 if(!avatarUrl.isEmpty()) {
-                    obj.addProperty("avatar", ImageUtils.toDataString(avatarUrl, avatarImageType));
+                    obj.put("avatar", ImageUtils.toDataString(avatarUrl, avatarImageType));
                 }
             }
 
-            Request request = new Request.Builder()
-                    .url(Constants.BASE_URL + "/users/@me")
-                    .patch(RequestBody.create(obj.toString(), MediaType.parse("application/json")))
-                    .build();
+            try {
+                Request request = new Request.Builder()
+                        .url(Constants.BASE_URL + "/users/@me")
+                        .patch(RequestBody.create(Constants.MAPPER.writeValueAsString(obj), MediaType.parse("application/json")))
+                        .build();
 
-            try(Response resp = client.getHttpClient().newCall(request).execute()) {
-                String res = resp.body().string();
-                ErrHandler.handle(res);
+                try(Response resp = client.getHttpClient().newCall(request).execute()) {
+                    String res = resp.body().string();
+                    ErrHandler.handle(res);
+                } catch(Exception e) {
+                    e.printStackTrace();
+                }
             } catch(Exception e) {
                 e.printStackTrace();
             }

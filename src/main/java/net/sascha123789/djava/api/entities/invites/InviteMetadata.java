@@ -4,7 +4,9 @@
 
 package net.sascha123789.djava.api.entities.invites;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
+import org.apache.commons.lang3.StringUtils;
 
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -24,20 +26,20 @@ public class InviteMetadata {
         this.createdAt = createdAt;
     }
 
-    public static InviteMetadata fromJson(JsonObject json) {
+    public static InviteMetadata fromJson(JsonNode json) {
         int uses = 0;
         if(json.get("uses") != null) {
-            if(!json.get("uses").isJsonNull()) {
-                uses = json.get("uses").getAsInt();
+            if(!json.get("uses").isNull()) {
+                uses = json.get("uses").asInt();
             }
         }
 
-        int maxUses = json.get("max_uses").getAsInt();
-        int maxAge = json.get("max_age").getAsInt();
-        boolean temp = json.get("temporary").getAsBoolean();
-        String s = json.get("created_at").getAsString();
-        s = s.replace("+00:00", "");
-        s = s.replace("T", " ");
+        int maxUses = json.get("max_uses").asInt();
+        int maxAge = json.get("max_age").asInt();
+        boolean temp = json.get("temporary").asBoolean();
+        String s = json.get("created_at").asText();
+        s = StringUtils.replace(s,  "+00:00", "");
+        s = StringUtils.replace(s, "T", " ");
         Timestamp createdAt = Timestamp.valueOf(s);
 
         return new InviteMetadata(uses, maxUses, maxAge, temp, createdAt);

@@ -4,6 +4,9 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -14,6 +17,7 @@ import net.sascha123789.djava.gateway.DiscordClient;
 import net.sascha123789.djava.utils.Constants;
 import net.sascha123789.djava.utils.ErrHandler;
 import okhttp3.*;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.sql.Timestamp;
@@ -38,11 +42,11 @@ public class TextChannel extends MessageableChannel {
         this.lastPinTimestamp = lastPinTimestamp;
     }
 
-    public Optional<ThreadChannel> startThread(String name, ThreadType type, boolean invitable) {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("name", name);
-        obj.addProperty("type", (type == ThreadType.PRIVATE ? 12 : (type == ThreadType.PUBLIC ? 11 : 10)));
-        obj.addProperty("invitable", invitable);
+    public final Optional<ThreadChannel> startThread(String name, ThreadType type, boolean invitable) {
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
+        obj.put("name", name);
+        obj.put("type", (type == ThreadType.PRIVATE ? 12 : (type == ThreadType.PUBLIC ? 11 : 10)));
+        obj.put("invitable", invitable);
 
         Request request = new Request.Builder()
                 .url(Constants.BASE_URL + "/channels/" + id + "/threads")
@@ -53,17 +57,17 @@ public class TextChannel extends MessageableChannel {
             String res = resp.body().string();
             ErrHandler.handle(res);
 
-            return Optional.of(ThreadChannel.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class)));
+            return Optional.of(ThreadChannel.fromJson(client, Constants.MAPPER.readTree(res)));
         } catch(Exception e) {
             e.printStackTrace();
             return Optional.empty();
         }
     }
 
-    public Optional<ThreadChannel> startThread(String name, ThreadType type) {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("name", name);
-        obj.addProperty("type", (type == ThreadType.PRIVATE ? 12 : (type == ThreadType.PUBLIC ? 11 : 10)));
+    public final Optional<ThreadChannel> startThread(String name, ThreadType type) {
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
+        obj.put("name", name);
+        obj.put("type", (type == ThreadType.PRIVATE ? 12 : (type == ThreadType.PUBLIC ? 11 : 10)));
 
         Request request = new Request.Builder()
                 .url(Constants.BASE_URL + "/channels/" + id + "/threads")
@@ -74,17 +78,17 @@ public class TextChannel extends MessageableChannel {
             String res = resp.body().string();
             ErrHandler.handle(res);
 
-            return Optional.of(ThreadChannel.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class)));
+            return Optional.of(ThreadChannel.fromJson(client, Constants.MAPPER.readTree(res)));
         } catch(Exception e) {
             e.printStackTrace();
             return Optional.empty();
         }
     }
 
-    public Optional<ThreadChannel> startThread(String name, boolean invitable) {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("name", name);
-        obj.addProperty("invitable", invitable);
+    public final Optional<ThreadChannel> startThread(String name, boolean invitable) {
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
+        obj.put("name", name);
+        obj.put("invitable", invitable);
 
         Request request = new Request.Builder()
                 .url(Constants.BASE_URL + "/channels/" + id + "/threads")
@@ -95,16 +99,16 @@ public class TextChannel extends MessageableChannel {
             String res = resp.body().string();
             ErrHandler.handle(res);
 
-            return Optional.of(ThreadChannel.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class)));
+            return Optional.of(ThreadChannel.fromJson(client, Constants.MAPPER.readTree(res)));
         } catch(Exception e) {
             e.printStackTrace();
             return Optional.empty();
         }
     }
 
-    public Optional<ThreadChannel> startThread(String name) {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("name", name);
+    public final Optional<ThreadChannel> startThread(String name) {
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
+        obj.put("name", name);
 
         Request request = new Request.Builder()
                 .url(Constants.BASE_URL + "/channels/" + id + "/threads")
@@ -115,7 +119,7 @@ public class TextChannel extends MessageableChannel {
             String res = resp.body().string();
             ErrHandler.handle(res);
 
-            return Optional.of(ThreadChannel.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class)));
+            return Optional.of(ThreadChannel.fromJson(client, Constants.MAPPER.readTree(res)));
         } catch(Exception e) {
             e.printStackTrace();
             return Optional.empty();
@@ -196,40 +200,39 @@ public class TextChannel extends MessageableChannel {
             return this;
         }
 
-        public void update() {
-            JsonObject obj = new JsonObject();
+        public final void update() {
+            ObjectNode obj = Constants.MAPPER.createObjectNode();
 
             if(!name.isEmpty()) {
-                obj.addProperty("name", name);
+                obj.put("name", name);
             }
 
             if(!topic.isEmpty()) {
-                obj.addProperty("topic", topic);
+                obj.put("topic", topic);
             }
 
             if(position != -1) {
-                obj.addProperty("position", Math.abs(position));
+                obj.put("position", Math.abs(position));
             }
 
-            obj.addProperty("nsfw", nsfw);
+            obj.put("nsfw", nsfw);
 
             if(rateLimit != -1) {
-                obj.addProperty("rate_limit_per_user", Math.abs(rateLimit));
+                obj.put("rate_limit_per_user", Math.abs(rateLimit));
             }
 
             if(!overwrites.isEmpty()) {
-                JsonArray arr = new JsonArray();
+                ArrayNode arr = Constants.MAPPER.createArrayNode();
 
                 for(PermissionOverwrite overwrite: overwrites) {
-                    JsonObject o = overwrite.toJson();
-                    arr.add(o);
+                    arr.add(overwrite.toJson());
                 }
 
-                obj.add("permission_overwrites", arr);
+                obj.set("permission_overwrites", arr);
             }
 
             if(!parentId.isEmpty()) {
-                obj.addProperty("parent_id", parentId);
+                obj.put("parent_id", parentId);
             }
 
             if(!flags.isEmpty()) {
@@ -237,83 +240,89 @@ public class TextChannel extends MessageableChannel {
                 for(ChannelFlag el: this.flags) {
                     flags += el.getCode();
                 }
-                obj.addProperty("flags", flags);
+                obj.put("flags", flags);
             }
 
-            Request request = new Request.Builder()
-                    .url(Constants.BASE_URL + "/channels/" + channel.getId())
-                    .patch(RequestBody.create(obj.toString(), MediaType.parse("application/json"))).build();
+            try {
+                Request request = new Request.Builder()
+                        .url(Constants.BASE_URL + "/channels/" + channel.getId())
+                        .patch(RequestBody.create(Constants.MAPPER.writeValueAsString(obj), MediaType.parse("application/json"))).build();
 
-            try(Response resp = client.getHttpClient().newCall(request).execute()) {
-                String str = resp.body().string();
+                try(Response resp = client.getHttpClient().newCall(request).execute()) {
+                    String str = resp.body().string();
 
-                ErrHandler.handle(str);
-            } catch (Exception e) {
+                    ErrHandler.handle(str);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } catch(Exception e) {
                 e.printStackTrace();
+            }
+
+            if(client.isOptimized()) {
+                System.gc();
             }
         }
     }
 
-    public static TextChannel fromJson(DiscordClient client, JsonObject json) {
+    public static TextChannel fromJson(DiscordClient client, JsonNode json) {
         /* Base */
-        String id = json.get("id").getAsString();
-        int t = json.get("type").getAsInt();
+        String id = json.get("id").asText();
+        int t = json.get("type").asInt();
         ChannelType type = (t == 0 ? ChannelType.TEXT : (t == 2 ? ChannelType.VOICE : (t == 4 ? ChannelType.CATEGORY : (t == 5 ? ChannelType.ANNOUNCEMENT : (t == 10 ? ChannelType.ANNOUNCEMENT : (t == 11 ? ChannelType.PUBLIC_THREAD : (t == 12 ? ChannelType.PRIVATE_THREAD : (t == 13 ? ChannelType.STAGE : (t == 14 ? ChannelType.DIRECTORY : ChannelType.FORUM)))))))));
         String guildId = "";
 
         if(json.get("guild_id") != null) {
-            if(!json.get("guild_id").isJsonNull()) {
-                guildId = json.get("guild_id").getAsString();
+            if(!json.get("guild_id").isNull()) {
+                guildId = json.get("guild_id").asText();
             }
         }
 
         int position = 0;
         if(json.get("position") != null) {
-            if(!json.get("position").isJsonNull()) {
-                position = json.get("position").getAsInt();
+            if(!json.get("position").isNull()) {
+                position = json.get("position").asInt();
             }
         }
 
         Set<PermissionOverwrite> overwrites = new HashSet<>();
 
         if(json.get("permission_overwrites") != null) {
-            if(!json.get("permission_overwrites").isJsonNull()) {
-                JsonArray arr = json.get("permission_overwrites").getAsJsonArray();
+            if(!json.get("permission_overwrites").isNull()) {
+                JsonNode arr = json.get("permission_overwrites");
 
-                for(JsonElement el: arr) {
-                    JsonObject o = el.getAsJsonObject();
-
-                    overwrites.add(PermissionOverwrite.fromJson(o));
+                for(JsonNode el: arr) {
+                    overwrites.add(PermissionOverwrite.fromJson(el));
                 }
             }
         }
 
         String name = "";
         if(json.get("name") != null) {
-            if(!json.get("name").isJsonNull()) {
-                name = json.get("name").getAsString();
+            if(!json.get("name").isNull()) {
+                name = json.get("name").asText();
             }
         }
 
         boolean nsfw = false;
         if(json.get("nsfw") != null) {
-            if(!json.get("nsfw").isJsonNull()) {
-                nsfw = json.get("nsfw").getAsBoolean();
+            if(!json.get("nsfw").isNull()) {
+                nsfw = json.get("nsfw").asBoolean();
             }
         }
 
         String parentId = "";
         if(json.get("parent_id") != null) {
-            if(!json.get("parent_id").isJsonNull()) {
-                parentId = json.get("parent_id").getAsString();
+            if(!json.get("parent_id").isNull()) {
+                parentId = json.get("parent_id").asText();
             }
         }
 
         Set<ChannelFlag> flags = new HashSet<>();
         long flagsRaw = 0;
         if(json.get("flags") != null) {
-            if(!json.get("flags").isJsonNull()) {
-                flagsRaw = json.get("flags").getAsLong();
+            if(!json.get("flags").isNull()) {
+                flagsRaw = json.get("flags").asLong();
             }
         }
 
@@ -326,40 +335,44 @@ public class TextChannel extends MessageableChannel {
 
         String topic = "";
         if(json.get("topic") != null) {
-            if(!json.get("topic").isJsonNull()) {
-                topic = json.get("topic").getAsString();
+            if(!json.get("topic").isNull()) {
+                topic = json.get("topic").asText();
             }
         }
 
         String lastMsgId = "";
         if(json.get("last_message_id") != null) {
-            if(!json.get("last_message_id").isJsonNull()) {
-                lastMsgId = json.get("last_message_id").getAsString();
+            if(!json.get("last_message_id").isNull()) {
+                lastMsgId = json.get("last_message_id").asText();
             }
         }
 
         int rateLimit = 0;
         if(json.get("rate_limit_per_user") != null) {
-            if(!json.get("rate_limit_per_user").isJsonNull()) {
-                rateLimit = json.get("rate_limit_per_user").getAsInt();
+            if(!json.get("rate_limit_per_user").isNull()) {
+                rateLimit = json.get("rate_limit_per_user").asInt();
             }
         }
 
         int archiveDuration = 0;
         if(json.get("default_auto_archive_duration") != null) {
-            if(!json.get("default_auto_archive_duration").isJsonNull()) {
-                archiveDuration = json.get("default_auto_archive_duration").getAsInt();
+            if(!json.get("default_auto_archive_duration").isNull()) {
+                archiveDuration = json.get("default_auto_archive_duration").asInt();
             }
         }
 
         Timestamp lastPinTimestamp = null;
         if(json.get("last_pin_timestamp") != null) {
-            if(!json.get("last_pin_timestamp").isJsonNull()) {
-                String s = json.get("last_pin_timestamp").getAsString();
-                s = s.replace("+00:00", "");
-                s = s.replace("T", " ");
+            if(!json.get("last_pin_timestamp").isNull()) {
+                String s = json.get("last_pin_timestamp").asText();
+                s = StringUtils.replace(s, "+00:00", "");
+                s = StringUtils.replace(s, "T", " ");
                 lastPinTimestamp = Timestamp.valueOf(s);
             }
+        }
+
+        if(client.isOptimized()) {
+            System.gc();
         }
 
         return new TextChannel(client, id, type, guildId, position, overwrites, name, nsfw, parentId, flags, topic, lastMsgId, rateLimit, archiveDuration, lastPinTimestamp);

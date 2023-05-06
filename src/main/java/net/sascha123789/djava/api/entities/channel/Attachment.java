@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.Identifiable;
 
@@ -37,9 +38,9 @@ public class Attachment implements Identifiable {
         return o;
     }
 
-    public static Attachment fromJson(JsonObject json) {
-        String id = json.get("id").getAsString();
-        String filename = json.get("filename").getAsString();
+    public static Attachment fromJson(JsonNode json) {
+        String id = json.get("id").asText();
+        String filename = json.get("filename").asText();
 
         return new Attachment(id, filename);
     }

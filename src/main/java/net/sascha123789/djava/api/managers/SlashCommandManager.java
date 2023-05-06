@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.api.managers;
 
+import com.google.common.collect.ImmutableList;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -11,14 +12,16 @@ import net.sascha123789.djava.api.interactions.slash.SlashCommand;
 import net.sascha123789.djava.gateway.DiscordClient;
 import net.sascha123789.djava.utils.Constants;
 import net.sascha123789.djava.utils.ErrHandler;
-import okhttp3.*;
+import okhttp3.MediaType;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class SlashCommandManager implements DiscordManager {
     private DiscordClient client;
@@ -27,7 +30,25 @@ public class SlashCommandManager implements DiscordManager {
         this.client = client;
     }
 
-    public List<SlashCommand> getGlobalSlashCommands() {
+    public SlashCommand.Builder createBuilder(String name, String description) {
+        return new SlashCommand.Builder(client, name, description);
+    }
+
+    private static void putUuid(String id, String uuid) {
+        try {
+            Class<?> cls = DiscordClient.class;
+            Field f = cls.getDeclaredField("uuids");
+            f.setAccessible(true);
+
+            Map<String, String> map = (Map<String, String>) f.get(cls);
+
+            map.put(id, uuid);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public ImmutableList<SlashCommand> getGlobalSlashCommands() {
         Request get = new Request.Builder()
                 .url(Constants.BASE_URL + "/applications/" + client.getApplicationId() + "/commands?with_localizations=true")
                 .get().build();
@@ -52,7 +73,7 @@ public class SlashCommandManager implements DiscordManager {
             list.add(cmd);
         }
 
-        return list;
+        return ImmutableList.copyOf(list);
     }
 
     public void registerGlobalSlashCommand(SlashCommand command) {
@@ -65,6 +86,10 @@ public class SlashCommandManager implements DiscordManager {
         try(Response resp = client.getHttpClient().newCall(request).execute()) {
             String res = resp.body().string();
             ErrHandler.handle(res);
+
+            String id = Constants.GSON.fromJson(res, JsonObject.class).get("id").getAsString();
+
+            putUuid(id, client.getUuid());
         } catch(Exception e) {
             e.printStackTrace();
         }
@@ -178,9 +203,11 @@ public class SlashCommandManager implements DiscordManager {
                 .post(RequestBody.create(json, MediaType.parse("application/json"))).build();
 
         try(Response resp = client.getHttpClient().newCall(request).execute()) {
-            String str = resp.body().string();
-
+            String str = Objects.requireNonNull(resp.body()).string();
             ErrHandler.handle(str);
+
+            String id = Constants.GSON.fromJson(str, JsonObject.class).get("id").getAsString();
+            putUuid(id, client.getUuid());
         } catch(Exception e) {
             e.printStackTrace();
         }
@@ -199,7 +226,7 @@ public class SlashCommandManager implements DiscordManager {
         }
     }
 
-    public List<SlashCommand> getGuildSlashCommands(String guildId) {
+    public ImmutableList<SlashCommand> getGuildSlashCommands(String guildId) {
         Request request = new Request.Builder()
                 .url(Constants.BASE_URL + "/applications/" + client.getApplicationId() + "/guilds/" + guildId + "/commands?with_localizations=true")
                 .get().build();
@@ -224,7 +251,7 @@ public class SlashCommandManager implements DiscordManager {
             list.add(cmd);
         }
 
-        return list;
+        return ImmutableList.copyOf(list);
     }
 
     public void deleteGuildSlashCommandByName(String name, String guildId) {

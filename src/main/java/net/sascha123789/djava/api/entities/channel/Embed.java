@@ -4,14 +4,22 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.sascha123789.djava.utils.Constants;
+import org.apache.commons.lang3.StringUtils;
 
 import java.awt.*;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -122,7 +130,7 @@ public class Embed {
         }
 
         public Builder setTimestampNow() {
-            this.timestamp = Timestamp.from(OffsetDateTime.now().toInstant());
+            this.timestamp = Timestamp.from(LocalDateTime.now().toInstant(ZoneOffset.UTC));
             return this;
         }
 
@@ -141,7 +149,7 @@ public class Embed {
             return this;
         }
 
-        public Embed build() {
+        public final Embed build() {
             return new Embed(title, description, timestamp, color, footerText, footerUrl, imageUrl, thumbnailUrl, authorName, authorUrl, fields);
         }
     }
@@ -186,116 +194,116 @@ public class Embed {
         return authorUrl;
     }
 
-    public Set<EmbedField> getFields() {
-        return fields;
+    public ImmutableSet<EmbedField> getFields() {
+        return ImmutableSet.copyOf(fields);
     }
 
-    public JsonObject toJson() {
-        JsonObject o = new JsonObject();
+    public final JsonNode toJson() {
+        ObjectNode o = Constants.MAPPER.createObjectNode();
 
         if(!title.isEmpty()) {
-            o.addProperty("title", title);
+            o.put("title", title);
         }
 
         if(!description.isEmpty()) {
-            o.addProperty("description", description);
+            o.put("description", description);
         }
 
-        o.addProperty("type", "rich");
+        o.put("type", "rich");
 
         if(timestamp != null) {
-            o.addProperty("timestamp", timestamp.toString());
+            o.put("timestamp", timestamp.toString());
         }
 
         if(color != null) {
-            o.addProperty("color", (0xFFFFFF & color.getRGB()));
+            o.put("color", (0xFFFFFF & color.getRGB()));
         }
 
-        JsonObject footer = null;
+        ObjectNode footer = null;
         if(!footerText.isEmpty()) {
-            footer = new JsonObject();
-            footer.addProperty("text", footerText);
+            footer = Constants.MAPPER.createObjectNode();
+            footer.put("text", footerText);
         }
 
         if(!footerUrl.isEmpty()) {
             if(footer != null) {
-                footer.addProperty("icon_url", footerUrl);
+                footer.put("icon_url", footerUrl);
             }
         }
 
         if(footer != null) {
-            o.add("footer", footer);
+            o.set("footer", footer);
         }
 
         if(!imageUrl.isEmpty()) {
-            JsonObject img = new JsonObject();
-            img.addProperty("url", imageUrl);
+            ObjectNode img = Constants.MAPPER.createObjectNode();
+            img.put("url", imageUrl);
 
-            o.add("image", img);
+            o.set("image", img);
         }
 
         if(!thumbnailUrl.isEmpty()) {
-            JsonObject thumb = new JsonObject();
-            thumb.addProperty("url", thumbnailUrl);
+            ObjectNode thumb = Constants.MAPPER.createObjectNode();
+            thumb.put("url", thumbnailUrl);
 
-            o.add("thumbnail", thumb);
+            o.set("thumbnail", thumb);
         }
 
-        JsonObject author = null;
+        ObjectNode author = null;
         if(!authorName.isEmpty()) {
-            author = new JsonObject();
-            author.addProperty("name", authorName);
+            author = Constants.MAPPER.createObjectNode();
+            author.put("name", authorName);
         }
 
         if(!authorUrl.isEmpty()) {
             if(author != null) {
-                author.addProperty("url", authorUrl);
+                author.put("url", authorUrl);
             }
         }
 
         if(author != null) {
-            o.add("author", author);
+            o.set("author", author);
         }
 
         if(!fields.isEmpty()) {
-            JsonArray arr = new JsonArray();
+            ArrayNode arr = Constants.MAPPER.createArrayNode();
 
             for(EmbedField field: fields) {
-                JsonObject el = new JsonObject();
-                el.addProperty("name", field.getName());
-                el.addProperty("value", field.getValue());
-                el.addProperty("inline", field.isInline());
+                ObjectNode el = Constants.MAPPER.createObjectNode();
+                el.put("name", field.getName());
+                el.put("value", field.getValue());
+                el.put("inline", field.isInline());
 
                 arr.add(el);
             }
 
-            o.add("fields", arr);
+            o.set("fields", arr);
         }
 
         return o;
     }
 
-    public static Embed fromJson(JsonObject json) {
+    public static Embed fromJson(JsonNode json) {
         String title = "";
         if(json.get("title") != null) {
-            if(!json.get("title").isJsonNull()) {
-                title = json.get("title").getAsString();
+            if(!json.get("title").isNull()) {
+                title = json.get("title").asText();
             }
         }
 
         String desc = "";
         if(json.get("description") != null) {
-            if(!json.get("description").isJsonNull()) {
-                desc = json.get("description").getAsString();
+            if(!json.get("description").isNull()) {
+                desc = json.get("description").asText();
             }
         }
 
         Timestamp timestamp = null;
         if(json.get("timestamp") != null) {
-            if(!json.get("timestamp").isJsonNull()) {
-                String str = json.get("timestamp").getAsString();
-                str = str.replace("+00:00", "");
-                str = str.replace("T", " ");
+            if(!json.get("timestamp").isNull()) {
+                String str = json.get("timestamp").asText();
+                str = StringUtils.replace(str, "+00:00", "");
+                str = StringUtils.replace(str, "T", " ");
 
                 timestamp = Timestamp.valueOf(str);
             }
@@ -303,8 +311,8 @@ public class Embed {
 
         Color color = null;
         if(json.get("color") != null) {
-            if(!json.get("color").isJsonNull()) {
-                color = Color.decode(String.valueOf(json.get("color").getAsInt()));
+            if(!json.get("color").isNull()) {
+                color = Color.decode(String.valueOf(json.get("color").asInt()));
             }
         }
 
@@ -312,18 +320,18 @@ public class Embed {
         String footerUrl = "";
 
         if(json.get("footer") != null) {
-            if(!json.get("footer").isJsonNull()) {
-                JsonObject o = json.get("footer").getAsJsonObject();
+            if(!json.get("footer").isNull()) {
+                JsonNode o = json.get("footer");
 
                 if(o.get("text") != null) {
-                    if(!o.get("text").isJsonNull()) {
-                        footerText = o.get("text").getAsString();
+                    if(!o.get("text").isNull()) {
+                        footerText = o.get("text").asText();
                     }
                 }
 
                 if(o.get("icon_url") != null) {
-                    if(!o.get("icon_url").isJsonNull()) {
-                        footerUrl = o.get("icon_url").getAsString();
+                    if(!o.get("icon_url").isNull()) {
+                        footerUrl = o.get("icon_url").asText();
                     }
                 }
             }
@@ -331,61 +339,60 @@ public class Embed {
 
         String imageUrl = "";
         if(json.get("image") != null) {
-            if(!json.get("image").isJsonNull()) {
-                JsonObject o = json.get("image").getAsJsonObject();
-                imageUrl = o.get("url").getAsString();
+            if(!json.get("image").isNull()) {
+                JsonNode o = json.get("image");
+                imageUrl = o.get("url").asText();
             }
         }
 
         String thumbnailUrl = "";
         if(json.get("thumbnail") != null) {
-            if(!json.get("thumbnail").isJsonNull()) {
-                JsonObject o = json.get("thumbnail").getAsJsonObject();
-                thumbnailUrl = o.get("url").getAsString();
+            if(!json.get("thumbnail").isNull()) {
+                JsonNode o = json.get("thumbnail");
+                thumbnailUrl = o.get("url").asText();
             }
         }
 
         String authorName = "";
         String authorUrl = "";
         if(json.get("author") != null) {
-            if(!json.get("author").isJsonNull()) {
-                JsonObject o = json.get("author").getAsJsonObject();
+            if(!json.get("author").isNull()) {
+                JsonNode o = json.get("author");
 
-                authorName = o.get("name").getAsString();
+                authorName = o.get("name").asText();
 
                 if(o.get("url") != null) {
-                    if(!o.get("url").isJsonNull()) {
-                        authorUrl = o.get("url").getAsString();
+                    if(!o.get("url").isNull()) {
+                        authorUrl = o.get("url").asText();
                     }
                 }
             }
         }
 
         Set<EmbedField> fields = new HashSet<>();
-        JsonArray arr = null;
+        JsonNode arr = null;
         if(json.get("fields") != null) {
-            if(!json.get("fields").isJsonNull()) {
-                arr = json.get("fields").getAsJsonArray();
+            if(!json.get("fields").isNull()) {
+                arr = json.get("fields");
             }
         }
 
         if(arr != null) {
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                String name = o.get("name").getAsString();
-                String value = o.get("value").getAsString();
+            for(JsonNode el: arr) {
+                String name = el.get("name").asText();
+                String value = el.get("value").asText();
                 boolean inline = false;
 
-                if(o.get("inline") != null) {
-                    if(!o.get("inline").isJsonNull()) {
-                        inline = o.get("inline").getAsBoolean();
+                if(el.get("inline") != null) {
+                    if(!el.get("inline").isNull()) {
+                        inline = el.get("inline").asBoolean();
                     }
                 }
 
                 fields.add(new EmbedField(name, value, inline));
             }
         }
+        System.gc();
 
         return new Embed(title, desc, timestamp, color, footerText, footerUrl, imageUrl, thumbnailUrl, authorName, authorUrl, fields);
     }

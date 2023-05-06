@@ -5,6 +5,7 @@
 package net.sascha123789.djava.gateway.events;
 
 import net.sascha123789.djava.api.entities.channel.MessageableChannel;
+import net.sascha123789.djava.api.entities.guild.Guild;
 import net.sascha123789.djava.gateway.DiscordClient;
 
 import java.util.Set;
@@ -13,14 +14,14 @@ public class MessageDeleteBulkEvent extends BaseEvent {
     private Set<String> ids;
     private String channelId;
     private MessageableChannel channel;
-    private String guildId;
+    private Guild guild;
 
-    public MessageDeleteBulkEvent(DiscordClient client, Set<String> ids, String channelId, String guildId) {
+    public MessageDeleteBulkEvent(DiscordClient client, Set<String> ids, String channelId, Guild guild) {
         super(client);
         this.ids = ids;
         this.channelId = channelId;
         this.channel = client.getChannelById(channelId).get().asMessageable();
-        this.guildId = guildId;
+        this.guild = guild;
     }
 
     public Set<String> getIds() {
@@ -35,7 +36,7 @@ public class MessageDeleteBulkEvent extends BaseEvent {
         return channel;
     }
 
-    public String getGuildId() {
-        return guildId;
+    public Guild getGuild() {
+        return guild;
     }
 }

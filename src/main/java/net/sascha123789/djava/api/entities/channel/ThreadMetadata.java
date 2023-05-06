@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
 
 import java.sql.Timestamp;
@@ -27,31 +28,31 @@ public class ThreadMetadata {
         this.guildId = guildId;
     }
 
-    public static ThreadMetadata fromJson(String guildId, JsonObject json) {
-        boolean archived = json.get("archived").getAsBoolean();
-        int archiveDuration = json.get("auto_archive_duration").getAsInt();
+    public static ThreadMetadata fromJson(String guildId, JsonNode json) {
+        boolean archived = json.get("archived").asBoolean();
+        int archiveDuration = json.get("auto_archive_duration").asInt();
         Timestamp archiveTimestamp = null;
         if(json.get("archive_timestamp") != null) {
-            if(!json.get("archive_timestamp").isJsonNull()) {
-                String s = json.get("archive_timestamp").getAsString();
+            if(!json.get("archive_timestamp").isNull()) {
+                String s = json.get("archive_timestamp").asText();
                 s = s.replace("+00:00", "");
                 s = s.replace("T", " ");
                 archiveTimestamp = Timestamp.valueOf(s);
             }
         }
-        boolean locked = json.get("locked").getAsBoolean();
+        boolean locked = json.get("locked").asBoolean();
         boolean invitable = true;
 
         if(json.get("invitable") != null) {
-            if(!json.get("invitable").isJsonNull()) {
-                invitable = json.get("invitable").getAsBoolean();
+            if(!json.get("invitable").isNull()) {
+                invitable = json.get("invitable").asBoolean();
             }
         }
 
         Timestamp createTimestamp = null;
         if(json.get("create_timestamp") != null) {
-            if(!json.get("create_timestamp").isJsonNull()) {
-                String s = json.get("create_timestamp").getAsString();
+            if(!json.get("create_timestamp").isNull()) {
+                String s = json.get("create_timestamp").asText();
                 s = s.replace("+00:00", "");
                 s = s.replace("T", " ");
 

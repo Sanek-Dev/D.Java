@@ -4,6 +4,9 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -66,11 +69,10 @@ public abstract class MessageableChannel extends BaseChannel {
             String res = resp.body().string();
             ErrHandler.handle(res);
 
-            JsonArray arr = Constants.GSON.fromJson(res, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(res);
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-                set.add(Message.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Message.fromJson(client, el));
             }
 
             return Optional.of(set);
@@ -95,17 +97,21 @@ public abstract class MessageableChannel extends BaseChannel {
     }
 
     public void followTo(String announcementChannelId) {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("webhook_channel_id", id);
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
+        obj.put("webhook_channel_id", id);
 
-        Request request = new Request.Builder()
-                .url(Constants.BASE_URL + "/channels/" + announcementChannelId + "/followers")
-                .post(RequestBody.create(obj.toString(), MediaType.parse("application/json")))
-                .build();
+        try {
+            Request request = new Request.Builder()
+                    .url(Constants.BASE_URL + "/channels/" + announcementChannelId + "/followers")
+                    .post(RequestBody.create(Constants.MAPPER.writeValueAsString(obj), MediaType.parse("application/json")))
+                    .build();
 
-        try(Response resp = client.getHttpClient().newCall(request).execute()) {
-            String res = resp.body().string();
-            ErrHandler.handle(res);
+            try(Response resp = client.getHttpClient().newCall(request).execute()) {
+                String res = resp.body().string();
+                ErrHandler.handle(res);
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
         } catch(Exception e) {
             e.printStackTrace();
         }
@@ -114,23 +120,27 @@ public abstract class MessageableChannel extends BaseChannel {
     /**
      * Delete multiple messages in a single request**/
     public void bulkDeleteMessages(Collection<Message> collection) {
-        JsonObject obj = new JsonObject();
-        JsonArray arr = new JsonArray();
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
+        ArrayNode arr = Constants.MAPPER.createArrayNode();
 
         for(Message msg: collection) {
             arr.add(msg.getId());
         }
 
-        obj.add("messages", arr);
+        obj.set("messages", arr);
 
-        Request request = new Request.Builder()
-                .url(Constants.BASE_URL + "/channels/" + id + "/messages/bulk-delete")
-                .post(RequestBody.create(obj.toString(), MediaType.parse("application/json")))
-                .build();
+        try {
+            Request request = new Request.Builder()
+                    .url(Constants.BASE_URL + "/channels/" + id + "/messages/bulk-delete")
+                    .post(RequestBody.create(Constants.MAPPER.writeValueAsString(obj), MediaType.parse("application/json")))
+                    .build();
 
-        try(Response resp = client.getHttpClient().newCall(request).execute()) {
-            String res = resp.body().string();
-            ErrHandler.handle(res);
+            try(Response resp = client.getHttpClient().newCall(request).execute()) {
+                String res = resp.body().string();
+                ErrHandler.handle(res);
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
         } catch(Exception e) {
             e.printStackTrace();
         }
@@ -148,65 +158,69 @@ public abstract class MessageableChannel extends BaseChannel {
     }
 
     public Optional<Message> sendMessage(MessageData data) {
-        JsonObject obj = new JsonObject();
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
 
         if(!data.getContent().isEmpty()) {
-            obj.addProperty("content", data.getContent());
+            obj.put("content", data.getContent());
         }
-        obj.addProperty("tts", data.isTts());
+        obj.put("tts", data.isTts());
 
         if(!data.getEmbeds().isEmpty()) {
-            JsonArray arr = new JsonArray();
+            ArrayNode arr = Constants.MAPPER.createArrayNode();
 
             for(Embed emb: data.getEmbeds()) {
                 arr.add(emb.toJson());
             }
 
-            obj.add("embeds", arr);
+            obj.set("embeds", arr);
         }
 
         if(data.getAllowedMentions() != null) {
-            obj.add("allowed_mentions", data.getAllowedMentions().toJson());
+            obj.set("allowed_mentions", data.getAllowedMentions().toJson());
         }
 
         if(data.getReference() != null) {
-            JsonObject o = new JsonObject();
-            o.addProperty("message_id", data.getReference().getMessageId());
+            ObjectNode o = Constants.MAPPER.createObjectNode();
+            o.put("message_id", data.getReference().getMessageId());
 
-            obj.add("message_reference", o);
+            obj.set("message_reference", o);
         }
 
         if(!data.getStickers().isEmpty()) {
-            JsonArray arr = new JsonArray();
+            ArrayNode arr = Constants.MAPPER.createArrayNode();
 
             for(String el: data.getStickers()) {
                 arr.add(el);
             }
 
-            obj.add("sticker_ids", arr);
+            obj.set("sticker_ids", arr);
         }
 
         if(!data.getAttachments().isEmpty()) {
-            JsonArray arr = new JsonArray();
+            ArrayNode arr = Constants.MAPPER.createArrayNode();
             int i = 0;
 
             for(File el: data.getAttachments()) {
-                JsonObject o = new JsonObject();
-                o.addProperty("id", i);
-                o.addProperty("filename", el.getName());
-                o.addProperty("description", "");
+                ObjectNode o = Constants.MAPPER.createObjectNode();
+                o.put("id", i);
+                o.put("filename", el.getName());
+                o.put("description", "");
                 arr.add(o);
 
                 i++;
             }
 
-            obj.add("attachments", arr);
+            obj.set("attachments", arr);
         }
 
         MultipartBody.Builder body = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM);
 
-        body.addFormDataPart("payload_json", obj.toString());
+        try {
+            body.addFormDataPart("payload_json", Constants.MAPPER.writeValueAsString(obj));
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
 
         if(!data.getAttachments().isEmpty()) {
             int i = 0;
@@ -225,7 +239,7 @@ public abstract class MessageableChannel extends BaseChannel {
         try(Response resp = client.getHttpClient().newCall(request).execute()) {
             String res = resp.body().string();
             ErrHandler.handle(res);
-            return Optional.of(Message.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class)));
+            return Optional.of(Message.fromJson(client, Constants.MAPPER.readTree(res)));
         } catch(Exception e) {
             e.printStackTrace();
         }
@@ -246,14 +260,12 @@ public abstract class MessageableChannel extends BaseChannel {
             String str = resp.body().string();
             ErrHandler.handle(str);
 
-            JsonArray arr = Constants.GSON.fromJson(str, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(str);
 
             Set<Message> set = new HashSet<>();
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                set.add(Message.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Message.fromJson(client, el));
             }
 
             return Optional.of(set);
@@ -276,14 +288,12 @@ public abstract class MessageableChannel extends BaseChannel {
             String str = resp.body().string();
             ErrHandler.handle(str);
 
-            JsonArray arr = Constants.GSON.fromJson(str, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(str);
 
             Set<Message> set = new HashSet<>();
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                set.add(Message.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Message.fromJson(client, el));
             }
 
             return Optional.of(set);
@@ -306,14 +316,12 @@ public abstract class MessageableChannel extends BaseChannel {
             String str = resp.body().string();
             ErrHandler.handle(str);
 
-            JsonArray arr = Constants.GSON.fromJson(str, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(str);
 
             Set<Message> set = new HashSet<>();
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                set.add(Message.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Message.fromJson(client, el));
             }
 
             return Optional.of(set);
@@ -336,14 +344,12 @@ public abstract class MessageableChannel extends BaseChannel {
             String str = resp.body().string();
             ErrHandler.handle(str);
 
-            JsonArray arr = Constants.GSON.fromJson(str, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(str);
 
             Set<Message> set = new HashSet<>();
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                set.add(Message.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Message.fromJson(client, el));
             }
 
             return Optional.of(set);
@@ -366,14 +372,12 @@ public abstract class MessageableChannel extends BaseChannel {
             String str = resp.body().string();
             ErrHandler.handle(str);
 
-            JsonArray arr = Constants.GSON.fromJson(str, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(str);
 
             Set<Message> set = new HashSet<>();
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                set.add(Message.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Message.fromJson(client, el));
             }
 
             return Optional.of(set);
@@ -396,14 +400,12 @@ public abstract class MessageableChannel extends BaseChannel {
             String str = resp.body().string();
             ErrHandler.handle(str);
 
-            JsonArray arr = Constants.GSON.fromJson(str, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(str);
 
             Set<Message> set = new HashSet<>();
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                set.add(Message.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Message.fromJson(client, el));
             }
 
             return Optional.of(set);
@@ -425,14 +427,12 @@ public abstract class MessageableChannel extends BaseChannel {
             String str = resp.body().string();
             ErrHandler.handle(str);
 
-            JsonArray arr = Constants.GSON.fromJson(str, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(str);
 
             Set<Message> set = new HashSet<>();
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                set.add(Message.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Message.fromJson(client, el));
             }
 
             return Optional.of(set);
@@ -455,14 +455,12 @@ public abstract class MessageableChannel extends BaseChannel {
             String str = resp.body().string();
             ErrHandler.handle(str);
 
-            JsonArray arr = Constants.GSON.fromJson(str, JsonArray.class);
+            JsonNode arr = Constants.MAPPER.readTree(str);
 
             Set<Message> set = new HashSet<>();
 
-            for(JsonElement el: arr) {
-                JsonObject o = el.getAsJsonObject();
-
-                set.add(Message.fromJson(client, o));
+            for(JsonNode el: arr) {
+                set.add(Message.fromJson(client, el));
             }
 
             return Optional.of(set);
@@ -480,7 +478,7 @@ public abstract class MessageableChannel extends BaseChannel {
         try(Response resp = client.getHttpClient().newCall(request).execute()) {
             String res = resp.body().string();
             ErrHandler.handle(res);
-            return Optional.of(Message.fromJson(client, Constants.GSON.fromJson(res, JsonObject.class)));
+            return Optional.of(Message.fromJson(client, Constants.MAPPER.readTree(res)));
         } catch(Exception e) {
             e.printStackTrace();
             return Optional.empty();

@@ -6,6 +6,7 @@ package net.sascha123789.djava.gateway.events;
 
 import net.sascha123789.djava.api.entities.channel.Message;
 import net.sascha123789.djava.api.entities.channel.MessageableChannel;
+import net.sascha123789.djava.api.entities.guild.Guild;
 import net.sascha123789.djava.gateway.DiscordClient;
 
 public class MessageReactionRemoveAllEvent extends BaseEvent {
@@ -13,13 +14,13 @@ public class MessageReactionRemoveAllEvent extends BaseEvent {
     private MessageableChannel channel;
     private String msgId;
     private Message message;
-    private String guildId;
+    private Guild guild;
 
-    public MessageReactionRemoveAllEvent(DiscordClient client, String channelId, String msgId, String guildId) {
+    public MessageReactionRemoveAllEvent(DiscordClient client, String channelId, String msgId, Guild guild) {
         super(client);
         this.channelId = channelId;
         this.msgId = msgId;
-        this.guildId = guildId;
+        this.guild = guild;
         this.channel = client.getChannelById(channelId).get().asMessageable();
         this.message = channel.getMessageById(msgId).get();
     }
@@ -40,7 +41,7 @@ public class MessageReactionRemoveAllEvent extends BaseEvent {
         return message;
     }
 
-    public String getGuildId() {
-        return guildId;
+    public Guild getGuild() {
+        return guild;
     }
 }

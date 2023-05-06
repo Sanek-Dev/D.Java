@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.api.entities.channel;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.Identifiable;
 
@@ -22,21 +23,21 @@ public class ForumTag implements Identifiable {
         this.emojiName = emojiName;
     }
 
-    public static ForumTag fromJson(JsonObject json) {
-        String id = json.get("id").getAsString();
-        String name = json.get("name").getAsString();
-        boolean moderated = json.get("moderated").getAsBoolean();
+    public static ForumTag fromJson(JsonNode json) {
+        String id = json.get("id").asText();
+        String name = json.get("name").asText();
+        boolean moderated = json.get("moderated").asBoolean();
         String emojiId = "";
         if(json.get("emoji_id") != null) {
-            if(!json.get("emoji_id").isJsonNull()) {
-                emojiId = json.get("emoji_id").getAsString();
+            if(!json.get("emoji_id").isNull()) {
+                emojiId = json.get("emoji_id").asText();
             }
         }
 
         String emojiName = "";
         if(json.get("emoji_name") != null) {
-            if(!json.get("emoji_name").isJsonNull()) {
-                emojiName = json.get("emoji_name").getAsString();
+            if(!json.get("emoji_name").isNull()) {
+                emojiName = json.get("emoji_name").asText();
             }
         }
 

@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.api.entities.role;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
 
 public class RoleTags {
@@ -45,18 +46,18 @@ public class RoleTags {
         return linkedRole;
     }
 
-    public static RoleTags fromJson(JsonObject json) {
+    public static RoleTags fromJson(JsonNode json) {
         String botId = "";
         if(json.get("bot_id") != null) {
-            if(!json.get("bot_id").isJsonNull()) {
-                botId = json.get("bot_id").getAsString();
+            if(!json.get("bot_id").isNull()) {
+                botId = json.get("bot_id").asText();
             }
         }
 
         String integrationId = "";
         if(json.get("integration_id") != null) {
-            if(!json.get("integration_id").isJsonNull()) {
-                integrationId = json.get("integration_id").getAsString();
+            if(!json.get("integration_id").isNull()) {
+                integrationId = json.get("integration_id").asText();
             }
         }
 

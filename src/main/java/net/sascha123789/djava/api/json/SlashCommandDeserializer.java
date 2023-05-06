@@ -8,6 +8,8 @@ import com.google.gson.*;
 import net.sascha123789.djava.api.enums.DiscordLanguage;
 import net.sascha123789.djava.api.enums.DiscordPermission;
 import net.sascha123789.djava.api.interactions.slash.SlashCommand;
+import net.sascha123789.djava.api.managers.SlashCommandManager;
+import net.sascha123789.djava.gateway.DiscordClient;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -101,6 +103,6 @@ public class SlashCommandDeserializer implements JsonDeserializer<SlashCommand> 
             }
         }
 
-        return new SlashCommand(id, appId, guildId, name, nameLocals, descLocals, description, dmPermission, nsfw, requiredPermissions, availableForEveryone, null, null, null);
+        return new SlashCommand(DiscordClient.getClientByUuid(DiscordClient.getUuidById(id)).get(), id, appId, guildId, name, nameLocals, descLocals, description, dmPermission, nsfw, requiredPermissions, availableForEveryone, null, null, null);
     }
 }

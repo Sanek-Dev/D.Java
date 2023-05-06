@@ -4,14 +4,18 @@
 
 package net.sascha123789.djava.api.entities.guild;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.User;
 import net.sascha123789.djava.api.entities.role.Role;
 import net.sascha123789.djava.api.enums.DiscordPermission;
+import net.sascha123789.djava.api.enums.ImageType;
 import net.sascha123789.djava.gateway.DiscordClient;
 import net.sascha123789.djava.utils.Constants;
+import org.apache.commons.lang3.StringUtils;
 
 import java.sql.Timestamp;
 import java.util.HashSet;
@@ -31,8 +35,9 @@ public class Member {
     private Set<DiscordPermission> permissions;
     private Timestamp timeoutUntil;
     private DiscordClient client;
+    private String guildId;
 
-    private Member(DiscordClient client, User user, String nickname, String avatar, Set<Role> roles, Timestamp joinedAt, Timestamp boostStartTimestamp, boolean deaf, boolean mute, Set<MemberFlag> flags, boolean pending, Set<DiscordPermission> permissions, Timestamp timeoutUntil) {
+    private Member(String guildId, DiscordClient client, User user, String nickname, String avatar, Set<Role> roles, Timestamp joinedAt, Timestamp boostStartTimestamp, boolean deaf, boolean mute, Set<MemberFlag> flags, boolean pending, Set<DiscordPermission> permissions, Timestamp timeoutUntil) {
         this.client = client;
         this.user = user;
         this.nickname = nickname;
@@ -46,6 +51,7 @@ public class Member {
         this.pending = pending;
         this.timeoutUntil = timeoutUntil;
         this.permissions = permissions;
+        this.guildId = guildId;
     }
 
     public User getUser() {
@@ -56,12 +62,22 @@ public class Member {
         return nickname;
     }
 
+    /**
+     * @apiNote Default image type is png**/
+    public String getAvatarUrl() {
+        return Constants.BASE_IMAGES_URL + "guilds/" + guildId + "/users/" + user.getId() + "/avatars/" + avatar + ".png";
+    }
+
+    public String getAvatarUrl(ImageType type) {
+        return Constants.BASE_IMAGES_URL + "guilds/" + guildId + "/users/" + user.getId() + "/avatars/" + avatar + (type == ImageType.GIF ? ".gif" : (type == ImageType.PNG ? ".png" : (type == ImageType.JPEG ? ".jpg" : ".webp")));
+    }
+
     public String getAvatarHash() {
         return avatar;
     }
 
-    public Set<Role> getRoles() {
-        return roles;
+    public ImmutableSet<Role> getRoles() {
+        return ImmutableSet.copyOf(roles);
     }
 
     public Timestamp getJoinedAt() {
@@ -80,41 +96,41 @@ public class Member {
         return mute;
     }
 
-    public Set<MemberFlag> getFlags() {
-        return flags;
+    public ImmutableSet<MemberFlag> getFlags() {
+        return ImmutableSet.copyOf(flags);
     }
 
     public boolean isPending() {
         return pending;
     }
 
-    public Set<DiscordPermission> getPermissions() {
-        return permissions;
+    public ImmutableSet<DiscordPermission> getPermissions() {
+        return ImmutableSet.copyOf(permissions);
     }
 
     public Timestamp getTimeoutUntil() {
         return timeoutUntil;
     }
 
-    public static Member fromJson(DiscordClient client, JsonObject json) {
+    public static Member fromJson(DiscordClient client, JsonNode json, String guildId) {
         User user = null;
         if(json.get("user") != null) {
-            if(!json.get("user").isJsonNull()) {
-                user = Constants.GSON.fromJson(json.get("user").getAsJsonObject(), User.class);
+            if(!json.get("user").isNull()) {
+                user = User.fromJson(json.get("user"));
             }
         }
 
         String nick = "";
         if(json.get("nick") != null) {
-            if(!json.get("nick").isJsonNull()) {
-                nick = json.get("nick").getAsString();
+            if(!json.get("nick").isNull()) {
+                nick = json.get("nick").asText();
             }
         }
 
         String avatar = "";
         if(json.get("avatar") != null) {
-            if(!json.get("avatar").isJsonNull()) {
-                avatar = json.get("avatar").getAsString();
+            if(!json.get("avatar").isNull()) {
+                avatar = json.get("avatar").asText();
             }
         }
 
@@ -122,42 +138,42 @@ public class Member {
         //JsonArray arr = json.get("roles").getAsJsonArray();
         Timestamp joinedAt = null;
         if(json.get("joined_at") != null) {
-            if(!json.get("joined_at").isJsonNull()) {
-                String s = json.get("joined_at").getAsString();
-                s = s.replace("+00:00", "");
-                s = s.replace("T", " ");
+            if(!json.get("joined_at").isNull()) {
+                String s = json.get("joined_at").asText();
+                s = StringUtils.replace(s,  "+00:00", "");
+                s = StringUtils.replace(s, "T", " ");
                 joinedAt = Timestamp.valueOf(s);
             }
         }
 
         Timestamp boostStartTimestamp = null;
         if(json.get("premium_since") != null) {
-            if(!json.get("premium_since").isJsonNull()) {
-                String s = json.get("premium_since").getAsString();
-                s = s.replace("+00:00", "");
-                s = s.replace("T", " ");
+            if(!json.get("premium_since").isNull()) {
+                String s = json.get("premium_since").asText();
+                s = StringUtils.replace(s, "+00:00", "");
+                s = StringUtils.replace(s, "T", " ");
                 boostStartTimestamp = Timestamp.valueOf(s);
             }
         }
 
         boolean deaf = false;
         if(json.get("deaf") != null) {
-            if(!json.get("deaf").isJsonNull()) {
-                deaf = json.get("deaf").getAsBoolean();
+            if(!json.get("deaf").isNull()) {
+                deaf = json.get("deaf").asBoolean();
             }
         }
 
         boolean mute = false;
         if(json.get("mute") != null) {
-            if(!json.get("mute").isJsonNull()) {
-                mute = json.get("mute").getAsBoolean();
+            if(!json.get("mute").isNull()) {
+                mute = json.get("mute").asBoolean();
             }
         }
 
         long flagsRaw = 0;
         if(json.get("flags") != null) {
-            if(!json.get("flags").isJsonNull()) {
-                flagsRaw = json.get("flags").getAsLong();
+            if(!json.get("flags").isNull()) {
+                flagsRaw = json.get("flags").asLong();
             }
         }
 
@@ -170,25 +186,25 @@ public class Member {
 
         boolean pending = false;
         if(json.get("pending") != null) {
-            if(!json.get("pending").isJsonNull()) {
-                pending = json.get("pending").getAsBoolean();
+            if(!json.get("pending").isNull()) {
+                pending = json.get("pending").asBoolean();
             }
         }
 
         Timestamp timeoutUntil = null;
         if(json.get("communication_disabled_until") != null) {
-            if(!json.get("communication_disabled_until").isJsonNull()) {
-                String s = json.get("communication_disabled_until").getAsString();
-                s = s.replace("+00:00", "");
-                s = s.replace("T", " ");
+            if(!json.get("communication_disabled_until").isNull()) {
+                String s = json.get("communication_disabled_until").asText();
+                s = StringUtils.replace(s, "+00:00", "");
+                s = StringUtils.replace(s, "T", " ");
                 timeoutUntil = Timestamp.valueOf(s);
             }
         }
 
         long rawPerms = 0;
         if(json.get("permissions") != null) {
-            if(!json.get("permissions").isJsonNull()) {
-                rawPerms = Long.parseLong(json.get("permissions").getAsString());
+            if(!json.get("permissions").isNull()) {
+                rawPerms = Long.parseLong(json.get("permissions").asText());
             }
         }
 
@@ -199,6 +215,6 @@ public class Member {
             }
         }
 
-        return new Member(client, user, nick, avatar, roles, joinedAt, boostStartTimestamp, deaf, mute, flags, pending, perms, timeoutUntil);
+        return new Member(guildId, client, user, nick, avatar, roles, joinedAt, boostStartTimestamp, deaf, mute, flags, pending, perms, timeoutUntil);
     }
 }

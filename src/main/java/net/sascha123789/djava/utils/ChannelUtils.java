@@ -4,13 +4,14 @@
 
 package net.sascha123789.djava.utils;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.entities.channel.*;
 import net.sascha123789.djava.gateway.DiscordClient;
 
 public class ChannelUtils {
-    public static BaseChannel switchTypes(DiscordClient client, JsonObject json) {
-        int type = json.get("type").getAsInt();
+    public static BaseChannel switchTypes(DiscordClient client, JsonNode json) {
+        int type = json.get("type").asInt();
 
         return switch (type) {
             case 0, 5 -> TextChannel.fromJson(client, json);
