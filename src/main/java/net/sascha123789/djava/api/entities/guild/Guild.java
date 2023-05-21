@@ -7,26 +7,28 @@ package net.sascha123789.djava.api.entities.guild;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.gson.*;
+import com.google.common.hash.HashCode;
 import net.sascha123789.djava.api.Identifiable;
 import net.sascha123789.djava.api.entities.channel.*;
 import net.sascha123789.djava.api.entities.role.Role;
+import net.sascha123789.djava.api.enums.ChannelType;
 import net.sascha123789.djava.api.enums.DiscordLanguage;
 import net.sascha123789.djava.api.enums.ImageType;
+import net.sascha123789.djava.api.enums.VideoQualityMode;
 import net.sascha123789.djava.gateway.DiscordClient;
+import net.sascha123789.djava.utils.ChannelUtils;
 import net.sascha123789.djava.utils.Constants;
 import net.sascha123789.djava.utils.ErrHandler;
 import net.sascha123789.djava.utils.ImageUtils;
-import okhttp3.MediaType;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import okhttp3.*;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class Guild implements Identifiable {
     private final DiscordClient client;
@@ -105,6 +107,70 @@ public class Guild implements Identifiable {
         this.nsfwLevel = nsfwLevel;
         this.stickers = stickers;
         this.boostsBarEnabled = boostsBarEnabled;
+    }
+
+    public Role getRoleById(String id) {
+        return getRoles().stream().filter(el -> el.getId().equals(id)).toList().get(0);
+    }
+
+    public ImmutableList<Role> getRoles() {
+        List<Role> list = new ArrayList<>();
+
+        Request request = new Request.Builder()
+                .url(Constants.BASE_URL + "/guilds/" + id + "/roles")
+                .get().build();
+
+        try(Response resp = client.getHttpClient().newCall(request).execute()) {
+            String res = resp.body().string();
+            ErrHandler.handle(res);
+            JsonNode arr = Constants.MAPPER.readTree(res);
+
+            for(JsonNode el: arr) {
+                list.add(Role.fromJson(client, el));
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        return ImmutableList.copyOf(list);
+    }
+
+    public Member addMember(String token, String userId) {
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
+        obj.put("access_token", token);
+        Request request = null;
+        try {
+            request = new Request.Builder()
+                    .url(Constants.BASE_URL + "/guilds/" + id + "/members/" + userId)
+                    .put(RequestBody.create(Constants.MAPPER.writeValueAsString(obj), MediaType.parse("application/json")))
+                    .build();
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        try(Response resp = client.getHttpClient().newCall(request).execute()) {
+            String res = resp.body().string();
+            ErrHandler.handle(res);
+
+            return Member.fromJson(client, Constants.MAPPER.readTree(res), this);
+        } catch(Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj == null) return false;
+
+        if(obj.getClass() != this.getClass()) return false;
+
+        return this.id.equals(((Guild) obj).getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return this.id.hashCode();
     }
 
     public Updater getUpdater() {
@@ -458,6 +524,357 @@ public class Guild implements Identifiable {
         }
     }
 
+    public Member getSelfMember() {
+        return client.getCacheManager().getMemberCache().getUnchecked(id + ":" + client.getSelfUser().getId());
+    }
+
+    public List<Member> searchMembers(String query) {
+        HttpUrl.Builder url = HttpUrl.parse(Constants.BASE_URL + "/guilds/" + id + "/members/search").newBuilder()
+                .addQueryParameter("limit", "1000")
+                .addQueryParameter("query", query);
+        Request request = new Request.Builder()
+                .url(url.build().toString())
+                .get()
+                .build();
+
+        try(Response resp = client.getHttpClient().newCall(request).execute()) {
+            String res = resp.body().string();
+            ErrHandler.handle(res);
+            List<Member> list = new ArrayList<>();
+            JsonNode arr = Constants.MAPPER.readTree(res);
+
+            for(JsonNode el: arr) {
+                list.add(Member.fromJson(client, el, this));
+            }
+
+            return list;
+        } catch(Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public List<Member> getMembers() {
+        List<Member> list = new ArrayList<>();
+        int pageCount = memberCount < 1000 ? 1 : (int) Math.ceil((double) memberCount / 1000);
+        String id = "";
+
+        for(int i = 0; i < pageCount; i++) {
+            HttpUrl.Builder url = HttpUrl.parse(Constants.BASE_URL + "/guilds/" + this.id + "/members").newBuilder()
+                    .addQueryParameter("limit", "1000");
+
+            if(!id.isEmpty()) {
+                url.addQueryParameter("after", id);
+            }
+
+            Request request = new Request.Builder()
+                    .url(url.build().toString())
+                    .get()
+                    .build();
+
+            try(Response resp = client.getHttpClient().newCall(request).execute()) {
+                String res = resp.body().string();
+                ErrHandler.handle(res);
+                JsonNode arr = Constants.MAPPER.readTree(res);
+
+                for(int j = 0; j < arr.size(); j++) {
+                    JsonNode el = arr.get(j);
+                    list.add(Member.fromJson(client, el, this));
+
+                    if(j == (arr.size() - 1)) {
+                        id = el.get("user").get("id").asText();
+                    }
+                }
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        return list;
+    }
+
+    public List<ThreadChannel> getActiveThreads() {
+        Request request = new Request.Builder()
+                .url(Constants.BASE_URL + "/guilds/" + id + "/threads/active")
+                .get()
+                .build();
+
+        try(Response resp = client.getHttpClient().newCall(request).execute()) {
+            String res = resp.body().string();
+            ErrHandler.handle(res);
+
+            JsonNode obj = Constants.MAPPER.readTree(res);
+            JsonNode arr = obj.get("threads");
+            List<ThreadChannel> list = new ArrayList<>();
+
+            for(JsonNode el: arr) {
+                list.add(ThreadChannel.fromJson(client, el));
+            }
+
+            return list;
+        } catch(Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public ChannelCreator createChannelCreator(ChannelType type, String name) {
+        return new ChannelCreator(this, type, name);
+    }
+
+    public static class ChannelCreator {
+        private String name;
+        private ChannelType type;
+        private String topic;
+        private int bitrate;
+        private int userLimit;
+        private int rateLimit;
+        private int position;
+        private List<PermissionOverwrite> permissionOverwrites;
+        private CategoryChannel parent;
+        private boolean nsfw;
+        private String rtcRegion;
+        private VideoQualityMode videoQualityMode;
+        private int autoArchiveDuration;
+        private DefaultReaction defaultReaction;
+        private List<ForumTag> availableTags;
+        private ForumOrderType sortOrder;
+        private Guild guild;
+
+        public ChannelCreator(Guild guild, ChannelType type, String name) {
+            this.type = type;
+            this.name = name;
+            this.topic = "";
+            this.bitrate = -1;
+            this.userLimit = -1;
+            this.rateLimit = -1;
+            this.position = -1;
+            this.permissionOverwrites = new ArrayList<>();
+            this.parent = null;
+            this.nsfw = false;
+            this.rtcRegion = "";
+            this.videoQualityMode = null;
+            this.autoArchiveDuration = -1;
+            this.defaultReaction = null;
+            this.availableTags = new ArrayList<>();
+            this.sortOrder = null;
+            this.guild = guild;
+        }
+
+        public ChannelCreator setForumSortOrder(ForumOrderType sortOrder) {
+            this.sortOrder = sortOrder;
+            return this;
+        }
+
+        public ChannelCreator addForumTag(ForumTag tag) {
+            this.availableTags.add(tag);
+            return this;
+        }
+
+        public ChannelCreator setDefaultForumReaction(DefaultReaction reaction) {
+            this.defaultReaction = reaction;
+            return this;
+        }
+
+        /**
+         * @param autoArchiveDuration The default duration that the clients use (not the API) for newly created threads in the channel, in minutes, to automatically archive the thread after recent activity**/
+        public ChannelCreator setAutoArchiveDuration(int autoArchiveDuration) {
+            this.autoArchiveDuration = autoArchiveDuration;
+            return this;
+        }
+
+        public ChannelCreator setVideoQualityMode(VideoQualityMode videoQualityMode) {
+            this.videoQualityMode = videoQualityMode;
+            return this;
+        }
+
+        public ChannelCreator setRtcRegion(String rtcRegion) {
+            this.rtcRegion = rtcRegion;
+            return this;
+        }
+
+        public ChannelCreator setNsfw(boolean nsfw) {
+            this.nsfw = nsfw;
+            return this;
+        }
+
+        public ChannelCreator setParent(CategoryChannel parent) {
+            this.parent = parent;
+            return this;
+        }
+
+        public ChannelCreator addPermissionOverwrite(PermissionOverwrite permissionOverwrite) {
+            this.permissionOverwrites.add(permissionOverwrite);
+            return this;
+        }
+
+        public ChannelCreator setPosition(int position) {
+            this.position = position;
+            return this;
+        }
+
+        /**
+         * @param rateLimit Amount of seconds a user has to wait before sending another message (0-21600); bots, as well as users with the permission manage_messages or manage_channel, are unaffected**/
+        public ChannelCreator setRateLimitPerUser(int rateLimit) {
+            this.rateLimit = rateLimit;
+            return this;
+        }
+
+        public ChannelCreator setUserLimit(int userLimit) {
+            this.userLimit = userLimit;
+            return this;
+        }
+
+        public ChannelCreator setBitrate(int bitrate) {
+            this.bitrate = bitrate;
+            return this;
+        }
+
+        public ChannelCreator setTopic(String topic) {
+            this.topic = topic;
+            return this;
+        }
+
+        public ChannelCreator setName(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public ChannelCreator setType(ChannelType type) {
+            this.type = type;
+            return this;
+        }
+
+        public BaseChannel create() {
+            ObjectNode obj = Constants.MAPPER.createObjectNode();
+            obj.put("type", (type == ChannelType.ANNOUNCEMENT ? 5 : (type == ChannelType.DIRECTORY ? 14 : (type == ChannelType.CATEGORY ? 4 : (type == ChannelType.STAGE ? 13 : (type == ChannelType.PUBLIC_THREAD ? 11 : (type == ChannelType.PRIVATE_THREAD ? 12 : (type == ChannelType.TEXT ? 0 : (type == ChannelType.FORUM ? 15 : 2)))))))));
+            obj.put("name", name);
+
+            if(!topic.isEmpty()) {
+                obj.put("topic", topic);
+            }
+
+            if(bitrate != -1) {
+                obj.put("bitrate", bitrate);
+            }
+
+            if(userLimit != -1) {
+                obj.put("user_limit", userLimit);
+            }
+
+            if(rateLimit != -1) {
+                obj.put("rate_limit_per_user", rateLimit);
+            }
+
+            if(position != -1) {
+                obj.put("position", position);
+            }
+
+            if(!permissionOverwrites.isEmpty()) {
+                ArrayNode arr = Constants.MAPPER.createArrayNode();
+
+                for(PermissionOverwrite el: permissionOverwrites) {
+                    arr.add(el.toJson());
+                }
+
+                obj.set("permission_overwrites", arr);
+            }
+
+            if(parent != null) {
+                obj.put("parent_id", parent.getId());
+            }
+
+            obj.put("nsfw", nsfw);
+
+            if(!rtcRegion.isEmpty()) {
+                obj.put("rtc_region", rtcRegion);
+            }
+
+            if(videoQualityMode != null) {
+                obj.put("video_quality_mode", (videoQualityMode == VideoQualityMode.AUTO ? 1 : 2));
+            }
+
+            if(autoArchiveDuration != -1) {
+                obj.put("default_auto_archive_duration", autoArchiveDuration);
+            }
+
+            if(defaultReaction != null) {
+                obj.set("default_reaction_emoji", defaultReaction.toJson());
+            }
+
+            if(!availableTags.isEmpty()) {
+                ArrayNode arr = Constants.MAPPER.createArrayNode();
+
+                for(ForumTag el: availableTags) {
+                    arr.add(el.toJson());
+                }
+
+                obj.set("available_tags", arr);
+            }
+
+            if(sortOrder != null) {
+                obj.put("default_sort_order", (sortOrder == ForumOrderType.LATEST_ACTIVITY ? 0 : 1));
+            }
+
+            Request request = null;
+            try {
+                request = new Request.Builder()
+                        .url(Constants.BASE_URL + "/guilds/" + guild.getId() + "/channels")
+                        .post(RequestBody.create(Constants.MAPPER.writeValueAsString(obj), MediaType.parse("application/json")))
+                        .build();
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+
+            try(Response resp = guild.getClient().getHttpClient().newCall(request).execute()) {
+                String res = resp.body().string();
+                ErrHandler.handle(res);
+
+                return ChannelUtils.switchTypes(guild.getClient(), Constants.MAPPER.readTree(res));
+            } catch(Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+    }
+
+    public ImmutableSet<BaseChannel> getChannels() {
+        Request request = new Request.Builder()
+                .url(Constants.BASE_URL + "/guilds/" + id + "/channels")
+                .get()
+                .build();
+
+        try(Response resp = client.getHttpClient().newCall(request).execute()) {
+            String res = resp.body().string();
+            ErrHandler.handle(res);
+
+            Set<BaseChannel> set = new HashSet<>();
+            JsonNode arr = Constants.MAPPER.readTree(res);
+            for(JsonNode el: arr) {
+                set.add(ChannelUtils.switchTypes(client, el));
+            }
+
+            return ImmutableSet.copyOf(set);
+        } catch(Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public void delete() {
+        Request request = new Request.Builder()
+                .url(Constants.BASE_URL + "/guilds/" + id)
+                .delete()
+                .build();
+
+        try(Response resp = client.getHttpClient().newCall(request).execute()) {
+            String res = resp.body().string();
+            ErrHandler.handle(res);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public DiscordClient getClient() {
         return client;
     }
@@ -743,7 +1160,7 @@ public class Guild implements Identifiable {
             String res = resp.body().string();
             ErrHandler.handle(res);
 
-            return Member.fromJson(client, Constants.MAPPER.readTree(res), this.id);
+            return Member.fromJson(client, Constants.MAPPER.readTree(res), this);
         } catch(Exception e) {
             e.printStackTrace();
             return null;
@@ -826,10 +1243,6 @@ public class Guild implements Identifiable {
 
     public ExplicitContentFilterLevel getExplicitContentFilterLevel() {
         return explicitContentFilterLevel;
-    }
-
-    public ImmutableSet<Role> getRoles() {
-        return ImmutableSet.copyOf(roles);
     }
 
     public ImmutableSet<Emoji> getEmojis() {

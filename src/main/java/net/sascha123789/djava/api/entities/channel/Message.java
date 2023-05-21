@@ -463,7 +463,11 @@ public class Message implements Identifiable, DeferInstance<Message> {
     public static Message fromJson(DiscordClient client, JsonNode json) {
         String id = json.get("id").asText();
         String channelId = json.get("channel_id").asText();
-        User author = User.fromJson(json.get("author"));
+        User author = null;
+
+        if(json.get("author") != null) {
+            author = User.fromJson(json.get("author"));
+        }
 
         String content = "";
 

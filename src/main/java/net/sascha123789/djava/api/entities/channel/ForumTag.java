@@ -5,8 +5,10 @@
 package net.sascha123789.djava.api.entities.channel;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.JsonObject;
 import net.sascha123789.djava.api.Identifiable;
+import net.sascha123789.djava.utils.Constants;
 
 public class ForumTag implements Identifiable {
     private String id;
@@ -21,6 +23,39 @@ public class ForumTag implements Identifiable {
         this.moderated = moderated;
         this.emojiId = emojiId;
         this.emojiName = emojiName;
+    }
+
+    public ForumTag setModerated(boolean moderated) {
+        this.moderated = moderated;
+        return this;
+    }
+
+    public static ForumTag create(String name, Emoji emoji) {
+        return new ForumTag("", name, false, emoji.getId(), emoji.getName());
+    }
+
+    public JsonNode toJson() {
+        ObjectNode obj = Constants.MAPPER.createObjectNode();
+
+        if(!id.isEmpty()) {
+            obj.put("id", id);
+        }
+
+        if(!name.isEmpty()) {
+            obj.put("name", name);
+        }
+
+        obj.put("moderated", moderated);
+
+        if(!emojiId.isEmpty()) {
+            obj.put("emoji_id", emojiId);
+        }
+
+        if(!emojiName.isEmpty()) {
+            obj.put("emoji_name", emojiName);
+        }
+
+        return obj;
     }
 
     public static ForumTag fromJson(JsonNode json) {

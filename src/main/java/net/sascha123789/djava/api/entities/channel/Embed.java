@@ -17,9 +17,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.awt.*;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -82,6 +80,11 @@ public class Embed {
             return this;
         }
 
+        public Builder addField(String name, int value) {
+            this.fields.add(new EmbedField(name, String.valueOf(value), false));
+            return this;
+        }
+
         public Builder addField(String name, String value, boolean inline) {
             this.fields.add(new EmbedField(name, value, inline));
             return this;
@@ -130,7 +133,7 @@ public class Embed {
         }
 
         public Builder setTimestampNow() {
-            this.timestamp = Timestamp.from(LocalDateTime.now().toInstant(ZoneOffset.UTC));
+            this.timestamp = new Timestamp(System.currentTimeMillis());
             return this;
         }
 

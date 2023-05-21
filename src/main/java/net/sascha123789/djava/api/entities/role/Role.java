@@ -46,6 +46,15 @@ public class Role implements Identifiable {
         this.mentionable = mentionable;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if(obj == null) return false;
+
+        if(obj.getClass() != this.getClass()) return false;
+
+        return ((Role) obj).id.equals(this.id);
+    }
+
     public String toMention() {
         return "<@&" + id + ">";
     }

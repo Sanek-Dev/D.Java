@@ -10,9 +10,11 @@ import net.sascha123789.djava.api.entities.channel.Embed;
 import net.sascha123789.djava.api.entities.channel.MessageableChannel;
 import net.sascha123789.djava.api.entities.guild.Guild;
 import net.sascha123789.djava.api.entities.guild.Member;
+import net.sascha123789.djava.api.entities.role.Role;
 import net.sascha123789.djava.api.enums.ChannelType;
 import net.sascha123789.djava.api.enums.DiscordPermission;
 import net.sascha123789.djava.api.enums.SlashCommandOptionType;
+import net.sascha123789.djava.api.interactions.DeferEvent;
 import net.sascha123789.djava.api.interactions.slash.*;
 import net.sascha123789.djava.api.managers.SlashCommandManager;
 import net.sascha123789.djava.gateway.EventAdapter;
@@ -21,43 +23,83 @@ import net.sascha123789.djava.gateway.events.HelloEvent;
 import net.sascha123789.djava.gateway.events.ReadyEvent;
 
 import java.awt.*;
+import java.util.concurrent.TimeUnit;
 
 public class Events implements EventAdapter {
+
     @Override
+    @DeferEvent
     public void onSlashCommandUse(SlashCommandUseEvent event) {
         Guild guild = event.getGuild();
         String name = event.getName();
 
         switch (name) {
             case "say" -> {
-                String text = event.getOptions().get("текст").getValueAsString();
+                String text = event.getOptions().get("текст").getValueAsString().get();
                 Embed emb = new Embed.Builder()
                         .setTitle("Успешно!")
                         .setColor(new Color(46, 154, 217))
                         .setDescription("Название сервера: " + guild.getName())
-                        .setFooter("/" + event.getName() + " " + event.getSubcommandGroupName() + " " + event.getSubcommandName())
                         .setThumbnailUrl(guild.getIconUrl())
+                        .setTimestampNow()
                         .build();
 
-                event.reply(true, emb);
+                event.editReply(emb);
                 event.replyFollowup(text);
             }
             case "calc" -> {
-                int num0 = event.getOptions().get("число1").getValueAsInt();
-                int num1 = event.getOptions().get("число2").getValueAsInt();
+                int num0 = event.getOptions().get("число1").getValueAsInt().get();
+                int num1 = event.getOptions().get("число2").getValueAsInt().get();
                 int res = num0 + num1;
-                event.reply(num0 + " + " + num1 + " = " + res);
+
+                Embed emb = new Embed.Builder()
+                        .setTitle("Результат")
+                        .setDescription(num0 + " + " + num1 + " = " + res)
+                        .setColor(new Color(46, 154, 217))
+                        .setThumbnailUrl(event.getClient().getSelfUser().getAvatarUrl())
+                        .setImageUrl(guild.getIconUrl())
+                        .build();
+
+                event.editReply(emb);
             }
             case "permissions" -> {
-                Member member = event.getOptions().get("участник").getValueAsMember();
-                User user = event.getOptions().get("участник").getValueAsUser();
-                event.reply("Привет, *" + member.getNickname() + "*!\nИмя аккаунта: *" + user.getUsername() + "*");
+                Member member = event.getOptions().get("участник").getValueAsMember().get();
+                User user = event.getOptions().get("участник").getValueAsUser().get();
+                event.editReply("Привет, *" + member.getNickname() + "*!\nИмя аккаунта: *" + user.getUsername() + "*");
             }
             case "send-msg" -> {
-                MessageableChannel channel = event.getOptions().get("канал").getValueAsChannel().asMessageable();
-                String msg = event.getOptions().get("текст").getValueAsString();
+                MessageableChannel channel = event.getOptions().get("канал").getValueAsChannel().get().asMessageable();
+                String msg = event.getOptions().get("текст").getValueAsString().get();
                 channel.sendMessage(msg);
-                event.reply("Успешно!", true);
+                event.editReply("Успешно!");
+            }
+            case "role" -> {
+                event.editReply("Успешно!");
+                String sub = event.getSubcommandName();
+                Member member = event.getOptions().get("участник").getValueAsMember().get();
+                Role role = event.getOptions().get("роль").getValueAsRole().get();
+
+                if (sub.equals("add")) {
+                    member.addRole(role);
+                } else if (sub.equals("remove")) {
+                    member.removeRole(role);
+                }
+            }
+            case "bot-info" -> {
+                Embed emb = new Embed.Builder()
+                        .setTitle("🤖 Информация о боте 🤖")
+                        .setThumbnailUrl(event.getClient().getSelfUser().getAvatarUrl())
+                        .addField("Кол-во серверов", String.valueOf(event.getClient().getGuilds().size()))
+                        .setColor(Color.YELLOW)
+                        .build();
+
+                event.editReply(emb);
+            }
+            case "timeout" -> {
+                Member member = event.getOptions().get("участник").getValueAsMember().get();
+                member.timeout(TimeUnit.DAYS, 1);
+
+                event.editReply("Успешно!");
             }
         }
     }
@@ -97,7 +139,20 @@ public class Events implements EventAdapter {
         SlashCommand send = manager.createBuilder("send-msg", "Отправить сообщение в канал")
                 .addOptions(channelOpt, msgOption).build();
 
-        manager.bulkOverwriteGlobalSlashCommands(permissions, sayCmd, calc, send);
+        SlashCommandOption roleOpt = new SlashCommandOption.Builder(SlashCommandOptionType.ROLE, "роль", "Роль").setRequired(true).build();
+        SubCommand addSub = new SubCommand.Builder("add", "Добавить роль").addOptions(userOpt, roleOpt).build();
+        SubCommand removeSub = new SubCommand.Builder("remove", "Убрать роль").addOptions(userOpt, roleOpt).build();
+        SlashCommand role = manager.createBuilder("role", "Роли")
+                .addSubcommand(addSub)
+                .addSubcommand(removeSub).setAvailableInDm(false).build();
+
+        SlashCommand botInfo = manager.createBuilder("bot-info", "Информация о боте").setAvailableInDm(true).build();
+
+        SlashCommand timeout = manager.createBuilder("timeout", "Таймаут участника")
+                .setAvailableInDm(false)
+                .addOptions(new SlashCommandOption.Builder(SlashCommandOptionType.USER, "участник", "Участник сервера").setRequired(true).build()).build();
+
+        manager.bulkOverwriteGlobalSlashCommands(permissions, sayCmd, calc, send, role, botInfo, timeout);
 
         System.out.println(self.toString() + " is ready!");
     }

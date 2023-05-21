@@ -96,8 +96,8 @@ public class VoiceChannel extends BaseChannel {
             return this;
         }
 
-        public Updater setParentId(String parentId) {
-            this.parentId = parentId;
+        public Updater setParent(CategoryChannel channel) {
+            this.parentId = channel.getId();
             return this;
         }
 

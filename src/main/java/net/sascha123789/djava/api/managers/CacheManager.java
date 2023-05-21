@@ -22,6 +22,7 @@ public class CacheManager implements DiscordManager {
 
     public CacheManager(DiscordClient client) {
         this.guildCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
                 .build(new CacheLoader<String, Guild>() {
                     @NotNull
                     @Override
@@ -31,7 +32,7 @@ public class CacheManager implements DiscordManager {
                 });
 
         this.memberCache = CacheBuilder.newBuilder()
-                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .expireAfterWrite(2, TimeUnit.MINUTES)
                 .build(new CacheLoader<String, Member>() {
                     @NotNull
                     @Override

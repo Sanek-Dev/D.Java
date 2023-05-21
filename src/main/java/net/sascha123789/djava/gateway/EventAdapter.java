@@ -4,6 +4,7 @@
 
 package net.sascha123789.djava.gateway;
 
+import net.sascha123789.djava.api.interactions.BaseInteraction;
 import net.sascha123789.djava.api.interactions.slash.SlashCommandUseEvent;
 import net.sascha123789.djava.gateway.events.*;
 

@@ -47,10 +47,6 @@ public class SlashCommandUseEvent extends BaseInteraction {
         return channel;
     }
 
-    public DiscordClient getClient() {
-        return client;
-    }
-
     public Member getSelfMember() {
         return self;
     }

@@ -65,7 +65,7 @@ public class ThreadMember {
         if(json.get("member") != null) {
             if(!json.get("member").isNull()) {
                 if(thread != null) {
-                    member = Member.fromJson(client, json.get("member"), thread.getGuildId());
+                    member = Member.fromJson(client, json.get("member"), client.getCacheManager().getGuildCache().getUnchecked(thread.getGuildId()));
                 }
             }
         }

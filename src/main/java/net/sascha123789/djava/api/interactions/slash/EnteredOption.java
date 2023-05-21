@@ -12,6 +12,9 @@ import net.sascha123789.djava.api.entities.guild.Member;
 import net.sascha123789.djava.api.entities.role.Role;
 import net.sascha123789.djava.api.enums.SlashCommandOptionType;
 import net.sascha123789.djava.gateway.DiscordClient;
+import net.sascha123789.djava.utils.Constants;
+
+import java.util.Optional;
 
 public class EnteredOption {
     private SlashCommandOptionType type;
@@ -28,52 +31,120 @@ public class EnteredOption {
         this.guildId = guildId;
     }
 
-    public Role getValueAsRole() {
-        return Role.fromJson(client, value);
-    }
-
-    public Attachment getValueAsAttachment() {
-        return Attachment.fromJson(value);
-    }
-
-    public BaseChannel getValueAsChannel() {
-        return client.getCacheManager().getChannelCache().getUnchecked(value.get("id").asText());
-    }
-
-    public Member getValueAsMember() {
-        return client.getCacheManager().getMemberCache().getUnchecked(guildId + ":" + getValueAsUser().getId());
-    }
-
-    public User getValueAsUser() {
-        User user = null;
+    public Optional<Role> getValueAsRole() {
+        Role r = null;
 
         try {
-            user = User.fromJson(value);
+            r = Role.fromJson(client, value);
         } catch(Exception e) {
-            user = getValueAsMember().getUser();
+            return Optional.empty();
         }
 
-        return user;
+        return Optional.of(r);
     }
 
-    public boolean getValueAsBoolean() {
-        return value.asBoolean();
+    public Optional<Attachment> getValueAsAttachment() {
+        Attachment a = null;
+
+        try {
+            a = Attachment.fromJson(value);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+
+        return Optional.of(a);
     }
 
-    public String getValueAsString() {
-        return value.asText();
+    public Optional<BaseChannel> getValueAsChannel() {
+        BaseChannel c = null;
+
+        try {
+            c = client.getCacheManager().getChannelCache().getUnchecked(value.get("id").asText());
+        } catch(Exception e) {
+            return Optional.empty();
+        }
+
+        return Optional.of(c);
     }
 
-    public long getValueAsLong() {
-        return value.asLong();
+    public Optional<Member> getValueAsMember() {
+        Member m = null;
+
+        try {
+            m = client.getCacheManager().getMemberCache().getUnchecked(guildId + ":" + getValueAsUser().get().getId());
+        } catch(Exception e) {
+            return Optional.empty();
+        }
+
+        return Optional.of(m);
     }
 
-    public int getValueAsInt() {
-        return value.asInt();
+    public Optional<User> getValueAsUser() {
+        User u = null;
+
+        try {
+            u = User.fromJson(value);
+        } catch(Exception e) {
+            return Optional.empty();
+        }
+
+        return Optional.of(u);
     }
 
-    public double getValueAsDouble() {
-        return value.asDouble();
+    public Optional<Boolean> getValueAsBoolean() {
+        if(value.isNull()) {
+            return Optional.empty();
+        } else {
+            return Optional.of(value.asBoolean());
+        }
+    }
+
+    public Optional<String> getValueAsString() {
+        String s = "";
+
+        try {
+            s = value.asText();
+        } catch(Exception e) {
+            return Optional.empty();
+        }
+
+        return Optional.of(s);
+    }
+
+    public Optional<Long> getValueAsLong() {
+        long l = 0;
+
+        try {
+            l = value.asLong();
+        } catch(Exception e) {
+            return Optional.empty();
+        }
+
+        return Optional.of(l);
+    }
+
+    public Optional<Integer> getValueAsInt() {
+        int i = 0;
+
+        try {
+            i = value.asInt();
+        } catch(Exception e) {
+            return Optional.empty();
+        }
+
+        return Optional.of(i);
+    }
+
+    public Optional<Double> getValueAsDouble() {
+        double d = 0;
+
+        try {
+            d = value.asDouble();
+        } catch(Exception e) {
+            return Optional.empty();
+        }
+
+        return Optional.of(d);
     }
 
     public SlashCommandOptionType getType() {
